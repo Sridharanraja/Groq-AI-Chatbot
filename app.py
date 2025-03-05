@@ -93,11 +93,11 @@ if "show_options" not in st.session_state:
 #     st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
 #     st.session_state.current_chat = new_chat_id
     def create_new_chat():
-    new_chat_id = f"chat_{len(st.session_state.chats) + 1}"
-    st.session_state.chats[new_chat_id] = []
-    st.session_state.chat_names[new_chat_id] = "New Chat"  # ✅ Set default name
-    st.session_state.current_chat = new_chat_id
-    # save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
+        new_chat_id = f"chat_{len(st.session_state.chats) + 1}"
+        st.session_state.chats[new_chat_id] = []
+        st.session_state.chat_names[new_chat_id] = "New Chat"  # ✅ Set default name
+        st.session_state.current_chat = new_chat_id
+# save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
 
 # Ensure at least one chat exists
 if not st.session_state.chats:
