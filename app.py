@@ -147,7 +147,12 @@ st.title("🧠 Groq AI Chatbot")
 chat_id = st.session_state.current_chat
 chat_data = st.session_state.chats[chat_id]
 
-st.subheader(f"Session: {chat_data['chat_name']}")
+# st.subheader(f"Session: {chat_data['chat_name']}")
+if isinstance(chat_data, dict):  # ✅ Ensure it's a dictionary
+    st.subheader(f"Session: {chat_data.get('chat_name', 'New Chat')}")
+else:
+    st.subheader(f"Session: New Chat")
+
 
 # Model selection (Saved per chat)
 selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
