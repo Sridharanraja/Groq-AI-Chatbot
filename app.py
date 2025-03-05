@@ -65,13 +65,26 @@ def delete_chat(chat_id):
 # Load all chats
 chats = load_chats()
 
-# Initialize session state
+# # Initialize session state
+# if "chats" not in st.session_state:
+#     st.session_state.chats = chats
+# if "current_chat" not in st.session_state:
+#     st.session_state.current_chat = None
+# if "rename_mode" not in st.session_state:
+#     st.session_state.rename_mode = None
+
+# Initialize session state variables
 if "chats" not in st.session_state:
-    st.session_state.chats = chats
+    st.session_state.chats = {}
+if "chat_names" not in st.session_state:
+    st.session_state.chat_names = {}
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 if "rename_mode" not in st.session_state:
     st.session_state.rename_mode = None
+if "show_options" not in st.session_state:
+    st.session_state.show_options = {}
+
 
 # Function to create a new chat
 def create_new_chat():
