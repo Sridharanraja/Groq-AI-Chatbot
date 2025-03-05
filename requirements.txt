@@ -3,3 +3,4 @@ opencv-python-headless
 groq
 db-sqlite3
 uuid
+firebase-admin
