@@ -1,4 +1,4 @@
 streamlit
 opencv-python-headless
 groq
-sqlite3
+db-sqlite3
