@@ -65,39 +65,21 @@ def delete_chat(chat_id):
 # Load all chats
 chats = load_chats()
 
-# # Initialize session state
-# if "chats" not in st.session_state:
-#     st.session_state.chats = chats
-# if "current_chat" not in st.session_state:
-#     st.session_state.current_chat = None
-# if "rename_mode" not in st.session_state:
-#     st.session_state.rename_mode = None
-
-# Initialize session state variables
+# Initialize session state
 if "chats" not in st.session_state:
-    st.session_state.chats = {}
-if "chat_names" not in st.session_state:
-    st.session_state.chat_names = {} 
+    st.session_state.chats = chats
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 if "rename_mode" not in st.session_state:
     st.session_state.rename_mode = None
-if "show_options" not in st.session_state:
-    st.session_state.show_options = {}
-
 
 # Function to create a new chat
-# def create_new_chat():
-#     new_chat_id = str(uuid.uuid4())
-#     new_chat_name = "New Chat"
-#     st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
-#     st.session_state.current_chat = new_chat_id
-    def create_new_chat():
-        new_chat_id = f"chat_{len(st.session_state.chats) + 1}"
-        st.session_state.chats[new_chat_id] = []
-        st.session_state.chat_names[new_chat_id] = "New Chat"  # ✅ Set default name
-        st.session_state.current_chat = new_chat_id
-# save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
+def create_new_chat():
+    new_chat_id = str(uuid.uuid4())
+    new_chat_name = "New Chat"
+    st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
+    st.session_state.current_chat = new_chat_id
+    save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
 
 # Ensure at least one chat exists
 if not st.session_state.chats:
@@ -111,18 +93,10 @@ if st.sidebar.button("➕ New Chat"):
 
 for chat_id, chat_data in st.session_state.chats.items():
     col1, col2 = st.sidebar.columns([0.85, 0.15])
-    chat_name = st.session_state.chat_names.get(chat_id, "New Chat")  # ✅ Get chat name safely
-    if col1.button(chat_name, key=f"chat_{chat_id}"):
+
+    if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
         st.rerun()
-
-
-# for chat_id, chat_data in st.session_state.chats.items():
-    # col1, col2 = st.sidebar.columns([0.85, 0.15])
-
-    # if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
-    #     st.session_state.current_chat = chat_id
-    #     st.rerun()
 
     if col2.button("⋮", key=f"options_{chat_id}"):
         st.session_state.rename_mode = chat_id
@@ -147,98 +121,26 @@ st.title("🧠 Groq AI Chatbot")
 chat_id = st.session_state.current_chat
 chat_data = st.session_state.chats[chat_id]
 
-# st.subheader(f"Session: {chat_data['chat_name']}")
-if isinstance(chat_data, dict):  # ✅ Ensure it's a dictionary
-    st.subheader(f"Session: {chat_data.get('chat_name', 'New Chat')}")
-else:
-    st.subheader(f"Session: New Chat")
-
+st.subheader(f"Session: {chat_data['chat_name']}")
 
 # Model selection (Saved per chat)
-# selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
-if isinstance(chat_data, dict) and "model" in chat_data:
-    selected_model = st.selectbox("Choose AI Model", list(models.keys()), 
-                                  index=list(models.keys()).index(chat_data["model"]), 
-                                  key=f"model_{chat_id}")
-else:
-    selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=0, key=f"model_{chat_id}")
-
-# Ensure `chats` is a dictionary (fixes TypeError)
-if not isinstance(st.session_state.chats, dict):
-    st.session_state.chats = {}  # Reset as an empty dictionary if it's not
-
-# Ensure the specific `chat_id` exists in `chats`
-if chat_id not in st.session_state.chats or not isinstance(st.session_state.chats[chat_id], dict):
-    st.session_state.chats[chat_id] = {}  # Reset as an empty dictionary if needed
-
-# Now safely update the model for the chat
+selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
 st.session_state.chats[chat_id]["model"] = selected_model
+save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-
-# save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
-if isinstance(chat_data, dict):  
-    save_chat(chat_id, chat_data.get("chat_name", "New Chat"), chat_data.get("messages", []), selected_model)
-
-
-# Ensure chat_data is a dictionary
-if not isinstance(chat_data, dict):
-    chat_data = {}  # Reset to an empty dictionary if it's not
-
-# Ensure messages exist and are a list
-if "messages" not in chat_data or not isinstance(chat_data["messages"], list):
-    chat_data["messages"] = []  # Reset to an empty list if needed
-
-# Debugging: Print chat_data to check its structure
-st.write("Debug - Chat Data:", chat_data)  
-
-# Iterate over messages safely
+# Display chat history
 for message in chat_data["messages"]:
-    if isinstance(message, dict):  # Ensure each message is a dictionary
-        with st.chat_message(message.get("role", "user")):  # Default to "user"
-            st.markdown(message.get("content", ""))  # Default to empty string
-    else:
-        st.warning(f"Unexpected message format: {message}")  # Debugging warning
-
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 # User Input
-# user_input = st.chat_input("Type your message...")
-# if user_input:
-#     chat_data["messages"].append({"role": "user", "content": user_input})
-#     save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
-
-#     with st.chat_message("user"):
-#         st.markdown(user_input)
-# User input
 user_input = st.chat_input("Type your message...")
 if user_input:
-    # # If it's a new chat and still named "New Chat", update it based on the first message
-    # if st.session_state.chat_names[st.session_state.current_chat] == "New Chat":
-    #     # Extract a meaningful title from the first message (taking first 3 words)
-    #     extracted_title = " ".join(user_input.split()[:3]).capitalize()
-    #     st.session_state.chat_names[st.session_state.current_chat] = extracted_title
-    if (
-        st.session_state.current_chat in st.session_state.chat_names
-        and st.session_state.chat_names[st.session_state.current_chat] == "New Chat"
-    ):
-        extracted_title = " ".join(user_input.split()[:3]).capitalize()  # Take first 3 words
-        st.session_state.chat_names[st.session_state.current_chat] = extracted_title
+    chat_data["messages"].append({"role": "user", "content": user_input})
+    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-    # Append user input to chat history
-    # Ensure chat history exists in session state
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []  # Initialize as an empty list
-    
-    # Append user input to chat history
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    
-    # Display user input in chat
     with st.chat_message("user"):
         st.markdown(user_input)
-
-    # chat_history.append({"role": "user", "content": user_input})
-    # with st.chat_message("user"):
-    #     st.markdown(user_input)
-
 
     with st.spinner("Thinking..."):
         try:
@@ -253,63 +155,8 @@ if user_input:
         except Exception as e:
             bot_response = f"⚠️ Error: {str(e)}"
 
-
-# Ensure chat_data is a dictionary
-if "chats" not in st.session_state:
-    st.session_state.chats = {}
-
-if chat_id not in st.session_state.chats:
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": selected_model}
-
-# Get chat data safely
-chat_data = st.session_state.chats[chat_id]
-
-# Ensure chat_name exists
-if "chat_name" not in chat_data:
-    chat_data["chat_name"] = "New Chat"  # Default name
-
-# Ensure messages exist
-if "messages" not in chat_data:
-    chat_data["messages"] = []
-
-# Append the assistant's response to messages
-# chat_data["messages"].append({"role": "assistant", "content": bot_response})
-
-# Save the chat
-# save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
-
-# Generate the bot response safely
-bot_response = generate_response(user_input, selected_model)  # Ensure this function exists and works
-
-# Ensure chat_data is a dictionary
-if "chats" not in st.session_state:
-    st.session_state.chats = {}
-
-if chat_id not in st.session_state.chats:
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": selected_model}
-
-# Get chat data safely
-chat_data = st.session_state.chats[chat_id]
-
-# Ensure chat_name and messages exist
-chat_data.setdefault("chat_name", "New Chat")
-chat_data.setdefault("messages", [])
-
-# Append the assistant's response to messages **only if bot_response is valid**
-if bot_response:  
     chat_data["messages"].append({"role": "assistant", "content": bot_response})
-
-    # Save the chat
     save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-    # Display the assistant's response
     with st.chat_message("assistant"):
         st.markdown(bot_response)
-else:
-    st.warning("Error: No response generated. Please try again.")
-
-
-# # Display the assistant's response
-# with st.chat_message("assistant"):
-#     st.markdown(bot_response)
-
