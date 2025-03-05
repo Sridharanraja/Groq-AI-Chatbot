@@ -224,9 +224,20 @@ if user_input:
         st.session_state.chat_names[st.session_state.current_chat] = extracted_title
 
     # Append user input to chat history
-    chat_history.append({"role": "user", "content": user_input})
+    # Ensure chat history exists in session state
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []  # Initialize as an empty list
+    
+    # Append user input to chat history
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    
+    # Display user input in chat
     with st.chat_message("user"):
         st.markdown(user_input)
+
+    # chat_history.append({"role": "user", "content": user_input})
+    # with st.chat_message("user"):
+    #     st.markdown(user_input)
 
 
     with st.spinner("Thinking..."):
