@@ -163,13 +163,13 @@ if isinstance(chat_data, dict) and "model" in chat_data:
 else:
     selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=0, key=f"model_{chat_id}")
 
-# Ensure chats is a dictionary
+# Ensure `chats` is a dictionary (fixes TypeError)
 if not isinstance(st.session_state.chats, dict):
-    st.session_state.chats = {}
+    st.session_state.chats = {}  # Reset as an empty dictionary if it's not
 
-# Ensure the specific chat_id exists in the dictionary
-if chat_id not in st.session_state.chats:
-    st.session_state.chats[chat_id] = {}
+# Ensure the specific `chat_id` exists in `chats`
+if chat_id not in st.session_state.chats or not isinstance(st.session_state.chats[chat_id], dict):
+    st.session_state.chats[chat_id] = {}  # Reset as an empty dictionary if needed
 
 # Now safely update the model for the chat
 st.session_state.chats[chat_id]["model"] = selected_model
