@@ -163,8 +163,17 @@ if isinstance(chat_data, dict) and "model" in chat_data:
 else:
     selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=0, key=f"model_{chat_id}")
 
-st.session_state.chats[chat_id]["model"] = selected_model
-save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+# st.session_state.chats[chat_id]["model"] = selected_model
+if isinstance(st.session_state.chats, dict) and chat_id in st.session_state.chats:
+    st.session_state.chats[chat_id]["model"] = selected_model
+else:
+    st.session_state.chats = {}  # Initialize as a dictionary if it's not
+    st.session_state.chats[chat_id] = {"model": selected_model}
+
+# save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+if isinstance(chat_data, dict):  
+    save_chat(chat_id, chat_data.get("chat_name", "New Chat"), chat_data.get("messages", []), selected_model)
+
 
 # Display chat history
 for message in chat_data["messages"]:
