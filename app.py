@@ -253,8 +253,27 @@ if user_input:
         except Exception as e:
             bot_response = f"⚠️ Error: {str(e)}"
 
+
+    # Ensure chat_data is a dictionary
+    if not isinstance(chat_data, dict):
+        chat_data = {}
+    
+    # Ensure chat_name exists
+    if "chat_name" not in chat_data:
+        chat_data["chat_name"] = "New Chat"  # Default name
+    
+    # Ensure messages exist
+    if "messages" not in chat_data:
+        chat_data["messages"] = []
+    
+    # Append the assistant's response to messages
     chat_data["messages"].append({"role": "assistant", "content": bot_response})
+    
+    # Save the chat
     save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+
+    # chat_data["messages"].append({"role": "assistant", "content": bot_response})
+    # save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
     with st.chat_message("assistant"):
         st.markdown(bot_response)
