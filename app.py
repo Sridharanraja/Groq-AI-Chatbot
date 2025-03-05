@@ -181,13 +181,20 @@ if isinstance(chat_data, dict):
 
 
 # Ensure messages exist and are a list
-if not isinstance(chat_data.get("messages"), list):
-    chat_data["messages"] = []  # Reset to an empty list if it's not
+if not isinstance(chat_data, dict) or "messages" not in chat_data or not isinstance(chat_data["messages"], list):
+    chat_data["messages"] = []  # Reset to an empty list if it's not a list
+
+# Debugging: Print messages to check structure
+st.write("Debug - Messages:", chat_data["messages"])  
 
 # Now safely iterate over messages
 for message in chat_data["messages"]:
-    with st.chat_message(message.get("role", "user")):  # Default to "user" if role is missing
-        st.markdown(message.get("content", ""))  # Default to empty string if content is missing
+    if isinstance(message, dict):  # Ensure each message is a dictionary
+        with st.chat_message(message.get("role", "user")):  # Default to "user"
+            st.markdown(message.get("content", ""))  # Default to empty string
+    else:
+        st.warning(f"Unexpected message format: {message}")  # Debugging warning
+
 
 
 # User Input
