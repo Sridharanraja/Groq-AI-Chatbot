@@ -24,8 +24,13 @@ models = {
 st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
 
 # Get User ID (For Multi-User Support)
-user_id = st.experimental_user.email or str(uuid.uuid4())  # Use email if logged in, else generate random ID
-user_ref = db.collection("users").document(user_id)
+#user_id = st.experimental_user.email or str(uuid.uuid4())  # Use email if logged in, else generate random ID
+#user_ref = db.collection("users").document(user_id)
+
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = st.experimental_user.email if hasattr(st.experimental_user, 'email') else str(uuid.uuid4())
+
+user_ref = db.collection("users").document(st.session_state.user_id)
 
 # Initialize session state
 if "chats" not in st.session_state:
