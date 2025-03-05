@@ -24,7 +24,7 @@ models = {
     # "Gemma (7B)": "gemma-7b"#not working
 }
 
-# Database Setup
+# Setup Database
 def init_db():
     with sqlite3.connect("chat_history.db") as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS chats (
@@ -33,19 +33,20 @@ def init_db():
                             chat_history TEXT
                         )''')
 
-# Generate unique session ID for each user
+# Generate Unique Session ID
 if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())  # Unique ID per session
+    st.session_state.session_id = str(uuid.uuid4())
 
-# Load user's chat history from DB
+# Load User's Chat History
 def load_chat_history():
     with sqlite3.connect("chat_history.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT chat_name, chat_history FROM chats WHERE session_id=?", (st.session_state.session_id,))
+        cursor.execute("SELECT chat_name, chat_history FROM chats WHERE session_id=?", 
+                       (st.session_state.session_id,))
         data = cursor.fetchall()
         return {row[0]: eval(row[1]) for row in data} if data else {}
 
-# Save user's chat history to DB
+# Save User's Chat History
 def save_chat_history():
     with sqlite3.connect("chat_history.db") as conn:
         cursor = conn.cursor()
@@ -54,30 +55,56 @@ def save_chat_history():
                            (st.session_state.session_id, chat_name, str(history)))
         conn.commit()
 
-# Initialize DB
+# Initialize Database
 init_db()
 
-# Load chat history for this session
+# Load History
 if "chats" not in st.session_state:
     st.session_state.chats = load_chat_history()
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 
-# Create a new chat
+# Create a New Chat
 def create_new_chat():
     new_chat_name = f"Chat {len(st.session_state.chats) + 1}"
     st.session_state.chats[new_chat_name] = []
     st.session_state.current_chat = new_chat_name
     save_chat_history()
 
-# Ensure at least one chat
 if not st.session_state.chats:
     create_new_chat()
 
-# Sidebar - List of chats
+# Rename Chat
+def rename_chat(old_name, new_name):
+    if new_name and new_name not in st.session_state.chats:
+        st.session_state.chats[new_name] = st.session_state.chats.pop(old_name)
+        if st.session_state.current_chat == old_name:
+            st.session_state.current_chat = new_name
+        save_chat_history()
+        st.rerun()
+
+# Delete Chat
+def delete_chat(chat_name):
+    if chat_name in st.session_state.chats:
+        del st.session_state.chats[chat_name]
+        if st.session_state.current_chat == chat_name:
+            st.session_state.current_chat = None
+            if st.session_state.chats:
+                st.session_state.current_chat = list(st.session_state.chats.keys())[0]
+        save_chat_history()
+        st.rerun()
+
+# Sidebar - Chat History with Rename & Delete
 st.sidebar.title("💬 Chats")
+
 for chat_name in list(st.session_state.chats.keys()):
-    if st.sidebar.button(chat_name, key=chat_name):
+    with st.sidebar.expander(chat_name):
+        new_name = st.text_input("Rename", chat_name, key=f"rename_{chat_name}")
+        if st.button("Save", key=f"save_{chat_name}"):
+            rename_chat(chat_name, new_name)
+        if st.button("❌ Delete", key=f"delete_{chat_name}"):
+            delete_chat(chat_name)
+    if st.sidebar.button(chat_name, key=f"select_{chat_name}"):
         st.session_state.current_chat = chat_name
 
 if st.sidebar.button("➕ New Chat"):
@@ -86,27 +113,28 @@ if st.sidebar.button("➕ New Chat"):
 
 # Main Chat UI
 st.title("🧠 Groq AI Chatbot")
+
 if st.session_state.current_chat:
     st.subheader(f"Session: {st.session_state.current_chat}")
 
 # Model Selection
 selected_model = st.selectbox("Choose AI Model", list(models.keys()))
 
-# Display chat history
+# Display Chat History
 if st.session_state.current_chat:
     chat_history = st.session_state.chats[st.session_state.current_chat]
     for message in chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # User input
+    # User Input
     user_input = st.chat_input("Type your message...")
     if user_input:
         chat_history.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # Get AI response
+        # Get AI Response
         with st.spinner("Thinking..."):
             try:
                 response = client.chat.completions.create(
