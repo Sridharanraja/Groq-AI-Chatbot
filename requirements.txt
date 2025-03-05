@@ -4,3 +4,5 @@ groq
 gspread
 oauth2client
 pandas
+google-auth
+google-auth-oauthlib
