@@ -10,7 +10,7 @@ st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
 
 # Google Sheets Authentication
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("./groqbot-streamlit-1f71fc746cbd.json", scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name("./sheets/groqbot-streamlit-1f71fc746cbd.json", scope)
 client_gsheets = gspread.authorize(creds)
 sheet = client_gsheets.open("ChatbotHistory").sheet1 
 
