@@ -180,10 +180,15 @@ if isinstance(chat_data, dict):
     save_chat(chat_id, chat_data.get("chat_name", "New Chat"), chat_data.get("messages", []), selected_model)
 
 
-# Display chat history
+# Ensure messages exist and are a list
+if not isinstance(chat_data.get("messages"), list):
+    chat_data["messages"] = []  # Reset to an empty list if it's not
+
+# Now safely iterate over messages
 for message in chat_data["messages"]:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    with st.chat_message(message.get("role", "user")):  # Default to "user" if role is missing
+        st.markdown(message.get("content", ""))  # Default to empty string if content is missing
+
 
 # User Input
 # user_input = st.chat_input("Type your message...")
