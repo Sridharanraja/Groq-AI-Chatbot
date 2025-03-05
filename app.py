@@ -254,26 +254,31 @@ if user_input:
             bot_response = f"⚠️ Error: {str(e)}"
 
 
-    # Ensure chat_data is a dictionary
-    if not isinstance(chat_data, dict):
-        chat_data = {}
-    
-    # Ensure chat_name exists
-    if "chat_name" not in chat_data:
-        chat_data["chat_name"] = "New Chat"  # Default name
-    
-    # Ensure messages exist
-    if "messages" not in chat_data:
-        chat_data["messages"] = []
-    
-    # Append the assistant's response to messages
-    chat_data["messages"].append({"role": "assistant", "content": bot_response})
-    
-    # Save the chat
-    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+# Ensure chat_data is a dictionary
+if "chats" not in st.session_state:
+    st.session_state.chats = {}
 
-    # chat_data["messages"].append({"role": "assistant", "content": bot_response})
-    # save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+if chat_id not in st.session_state.chats:
+    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": selected_model}
 
-    with st.chat_message("assistant"):
-        st.markdown(bot_response)
+# Get chat data safely
+chat_data = st.session_state.chats[chat_id]
+
+# Ensure chat_name exists
+if "chat_name" not in chat_data:
+    chat_data["chat_name"] = "New Chat"  # Default name
+
+# Ensure messages exist
+if "messages" not in chat_data:
+    chat_data["messages"] = []
+
+# Append the assistant's response to messages
+chat_data["messages"].append({"role": "assistant", "content": bot_response})
+
+# Save the chat
+save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+
+# Display the assistant's response
+with st.chat_message("assistant"):
+    st.markdown(bot_response)
+
