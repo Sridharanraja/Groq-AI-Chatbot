@@ -1,71 +1,123 @@
 API='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'
 
 import streamlit as st
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from groq import Groq
-import pandas as pd
 
 st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
 
-# Google Sheets Authentication
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("./sheets/groqbot-streamlit-1f71fc746cbd.json", scope)
-client_gsheets = gspread.authorize(creds)
-sheet = client_gsheets.open("ChatbotHistory").sheet1 
 
 # Initialize Groq client
-groq_client = Groq(api_key=API)
+client = Groq(api_key=API)
 
 # Available Groq models
 models = {
     "Llama 3 (8B)": "llama3-8b-8192",
     "llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant": "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768": "mixtral-8x7b-32768",
+    "mixtral-8x7b-32768":"mixtral-8x7b-32768",
+    # "whisper-large-v3":"whisper-large-v3",
+    # "whisper-large-v3-turbo":"whisper-large-v3-turbo",
+    # "deepseek-r1-distill-llama-70b-specdec":"deepseek-r1-distill-llama-70b-specdec",
+    # "Mistral (7B)": "mistral-7b",#not working
+    # "Gemma (7B)": "gemma-7b"#not working
 }
-
-# Load previous chat history from Google Sheets
-def load_chat_history():
-    records = sheet.get_all_records()
-    chat_sessions = {}
-    for row in records:
-        chat_id = row["Chat_ID"]
-        if chat_id not in chat_sessions:
-            chat_sessions[chat_id] = []
-        chat_sessions[chat_id].append({"role": row["Role"], "content": row["Content"]})
-    return chat_sessions
-
-# Save chat messages to Google Sheets
-def save_chat_to_sheets(chat_id, role, content):
-    sheet.append_row([chat_id, role, content])
 
 # Initialize session state
 if "chats" not in st.session_state:
-    st.session_state.chats = load_chat_history()
+    st.session_state.chats = {}
+if "chat_names" not in st.session_state:
+    st.session_state.chat_names = {}
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
+if "rename_mode" not in st.session_state:
+    st.session_state.rename_mode = None
+if "show_options" not in st.session_state:
+    st.session_state.show_options = {}
 
+# Function to create a new chat session
 def create_new_chat():
     new_chat_id = f"chat_{len(st.session_state.chats) + 1}"
     st.session_state.chats[new_chat_id] = []
+    st.session_state.chat_names[new_chat_id] = "New Chat"
     st.session_state.current_chat = new_chat_id
 
+# Ensure at least one chat when running for the first time
 if not st.session_state.chats:
     create_new_chat()
 
-# Sidebar
+# Function to rename chat
+def rename_chat(chat_id, new_name):
+    if chat_id in st.session_state.chats and new_name.strip():
+        st.session_state.chat_names[chat_id] = new_name
+    st.session_state.rename_mode = None
+    st.rerun()  # ✅ Fix applied
+
+# Function to delete chat
+def delete_chat(chat_id):
+    if chat_id in st.session_state.chats:
+        del st.session_state.chats[chat_id]
+        del st.session_state.chat_names[chat_id]
+        
+        # Update the current chat to another available chat
+        if st.session_state.chats:
+            st.session_state.current_chat = list(st.session_state.chats.keys())[0]
+        else:
+            create_new_chat()
+
+    st.rerun()  # ✅ Fix applied
+
+# Sidebar - Chat session management
 st.sidebar.title("💬 Chats")
+
+# Button to start a new chat
 if st.sidebar.button("➕ New Chat"):
     create_new_chat()
-    st.rerun()
+    st.rerun()  # ✅ Fix applied
 
-for chat_id in list(st.session_state.chats.keys()):
-    if st.sidebar.button(chat_id, key=chat_id):
+# Display previous chats with rename & delete options inside a popover menu
+for chat_id, chat_name in list(st.session_state.chat_names.items()):
+    col1, col2 = st.sidebar.columns([0.85, 0.15])
+
+    # Show chat name
+    if col1.button(chat_name, key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
-        st.rerun()
+        st.rerun()  # ✅ Fix applied
 
+    # Show options only when hovered (Three Dots ⋮)
+    with col2:
+        if st.button("⋮", key=f"options_{chat_id}", help="More options"):
+            st.session_state.show_options[chat_id] = not st.session_state.show_options.get(chat_id, False)
+            st.rerun()  # ✅ Fix applied
+
+    # If options are active, show Rename/Delete buttons
+    if st.session_state.show_options.get(chat_id, False):
+        with st.sidebar.expander("Options", expanded=True):
+            if st.button("📝 Rename", key=f"rename_{chat_id}"):
+                st.session_state.rename_mode = chat_id
+                st.session_state.show_options[chat_id] = False
+                st.rerun()  # ✅ Fix applied
+            if st.button("🗑️ Delete", key=f"delete_{chat_id}"):
+                delete_chat(chat_id)
+
+    # Show rename input field when rename mode is active
+    if st.session_state.rename_mode == chat_id:
+        new_name = st.text_input("Enter new name:", value=chat_name, key=f"input_{chat_id}")
+        if st.button("✔️ Save", key=f"save_{chat_id}"):
+            rename_chat(chat_id, new_name)
+        if st.button("❌ Cancel", key=f"cancel_{chat_id}"):
+            st.session_state.rename_mode = None
+            st.rerun()  # ✅ Fix applied
+
+# Ensure there's an active chat
+if st.session_state.current_chat is None and st.session_state.chats:
+    st.session_state.current_chat = list(st.session_state.chats.keys())[0]
+
+# Main Page UI
 st.title("🧠 Groq AI Chatbot")
+if st.session_state.current_chat:
+    st.subheader(f"Session: {st.session_state.chat_names[st.session_state.current_chat]}")
+
+# Model selection
 selected_model = st.selectbox("Choose AI Model", list(models.keys()), key="model_selection")
 
 # Display chat history
@@ -75,16 +127,21 @@ if st.session_state.current_chat:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # User input
     user_input = st.chat_input("Type your message...")
     if user_input:
+        # Assign first user message as chat name if it's a new chat
+        if st.session_state.chat_names[st.session_state.current_chat] == "New Chat":
+            st.session_state.chat_names[st.session_state.current_chat] = user_input[:30]  # Limit name length
+
         chat_history.append({"role": "user", "content": user_input})
-        save_chat_to_sheets(st.session_state.current_chat, "user", user_input)
         with st.chat_message("user"):
             st.markdown(user_input)
 
+        # Call Groq API using official SDK
         with st.spinner("Thinking..."):
             try:
-                response = groq_client.chat.completions.create(
+                response = client.chat.completions.create(
                     model=models[selected_model],
                     messages=chat_history,
                     temperature=1,
@@ -95,10 +152,11 @@ if st.session_state.current_chat:
             except Exception as e:
                 bot_response = f"⚠️ Error: {str(e)}"
 
+        # Save and display bot response
         chat_history.append({"role": "assistant", "content": bot_response})
-        save_chat_to_sheets(st.session_state.current_chat, "assistant", bot_response)
         with st.chat_message("assistant"):
             st.markdown(bot_response)
+
 
         chat_history.append({"role": "assistant", "content": bot_response})
         save_chat_history()  # Save after every message
