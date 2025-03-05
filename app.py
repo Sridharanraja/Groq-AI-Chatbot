@@ -2,6 +2,8 @@ API='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'
 
 import streamlit as st
 from groq import Groq
+import uuid
+import sqlite3
 
 st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
 
