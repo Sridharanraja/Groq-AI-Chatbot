@@ -110,6 +110,7 @@ if st.sidebar.button("➕ New Chat"):
     st.rerun()
 
 for chat_id, chat_data in st.session_state.chats.items():
+    col1, col2 = st.sidebar.columns([0.85, 0.15])
     chat_name = st.session_state.chat_names.get(chat_id, "New Chat")  # ✅ Get chat name safely
     if col1.button(chat_name, key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
@@ -117,7 +118,7 @@ for chat_id, chat_data in st.session_state.chats.items():
 
 
 # for chat_id, chat_data in st.session_state.chats.items():
-    col1, col2 = st.sidebar.columns([0.85, 0.15])
+    # col1, col2 = st.sidebar.columns([0.85, 0.15])
 
     # if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
     #     st.session_state.current_chat = chat_id
