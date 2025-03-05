@@ -76,10 +76,9 @@ if "rename_mode" not in st.session_state:
 # Function to create a new chat
 def create_new_chat():
     new_chat_id = str(uuid.uuid4())
-    new_chat_name = "New Chat"
-    st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
+    st.session_state.chats[new_chat_id] = {"chat_name": "New Chat", "messages": [], "model": list(models.keys())[0]}
     st.session_state.current_chat = new_chat_id
-    save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
+    save_chat(new_chat_id, "New Chat", [], list(models.keys())[0])
 
 # Ensure at least one chat exists
 if not st.session_state.chats:
@@ -136,6 +135,11 @@ for message in chat_data["messages"]:
 # User Input
 user_input = st.chat_input("Type your message...")
 if user_input:
+    # Set chat title to first user message if still named "New Chat"
+    if chat_data["chat_name"] == "New Chat":
+        chat_data["chat_name"] = user_input[:30]  # Limit title length
+        save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+
     chat_data["messages"].append({"role": "user", "content": user_input})
     save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
@@ -160,3 +164,4 @@ if user_input:
 
     with st.chat_message("assistant"):
         st.markdown(bot_response)
+
