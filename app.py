@@ -61,6 +61,9 @@ def save_chat(chat_id, chat_name, messages, model):
 def delete_chat(chat_id):
     cursor.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
     conn.commit()
+    del st.session_state.chats[chat_id]
+    if st.session_state.current_chat == chat_id:
+        st.session_state.current_chat = list(st.session_state.chats.keys())[0] if st.session_state.chats else None
 
 # Load all chats
 chats = load_chats()
@@ -90,19 +93,23 @@ if st.sidebar.button("➕ New Chat"):
     create_new_chat()
     st.rerun()
 
-for chat_id, chat_data in st.session_state.chats.items():
-    col1, col2 = st.sidebar.columns([0.85, 0.15])
+for chat_id, chat_data in list(st.session_state.chats.items()):
+    col1, col2, col3 = st.sidebar.columns([0.7, 0.15, 0.15])
 
     if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
         st.rerun()
 
-    if col2.button("⋮", key=f"options_{chat_id}"):
+    if col2.button("✎", key=f"rename_{chat_id}"):
         st.session_state.rename_mode = chat_id
         st.rerun()
 
+    if col3.button("❌", key=f"delete_{chat_id}"):
+        delete_chat(chat_id)
+        st.rerun()
+
     if st.session_state.rename_mode == chat_id:
-        new_name = st.text_input("Rename Chat:", value=chat_data["chat_name"], key=f"rename_{chat_id}")
+        new_name = st.text_input("Rename Chat:", value=chat_data["chat_name"], key=f"rename_input_{chat_id}")
         if st.button("✔️ Save", key=f"save_{chat_id}"):
             st.session_state.chats[chat_id]["chat_name"] = new_name
             save_chat(chat_id, new_name, st.session_state.chats[chat_id]["messages"], st.session_state.chats[chat_id]["model"])
@@ -112,56 +119,55 @@ for chat_id, chat_data in st.session_state.chats.items():
             st.session_state.rename_mode = None
             st.rerun()
 
-if st.session_state.current_chat is None:
+if st.session_state.current_chat is None and st.session_state.chats:
     st.session_state.current_chat = list(st.session_state.chats.keys())[0]
 
 # Main Chat UI
 st.title("🧠 Groq AI Chatbot")
 chat_id = st.session_state.current_chat
-chat_data = st.session_state.chats[chat_id]
+if chat_id:
+    chat_data = st.session_state.chats[chat_id]
+    st.subheader(f"Session: {chat_data['chat_name']}")
 
-st.subheader(f"Session: {chat_data['chat_name']}")
+    # Model selection (Saved per chat)
+    selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
+    st.session_state.chats[chat_id]["model"] = selected_model
+    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-# Model selection (Saved per chat)
-selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
-st.session_state.chats[chat_id]["model"] = selected_model
-save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+    # Display chat history
+    for message in chat_data["messages"]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# Display chat history
-for message in chat_data["messages"]:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    # User Input
+    user_input = st.chat_input("Type your message...")
+    if user_input:
+        # Set chat title to first user message if still named "New Chat"
+        if chat_data["chat_name"] == "New Chat":
+            chat_data["chat_name"] = user_input[:30]  # Limit title length
+            save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-# User Input
-user_input = st.chat_input("Type your message...")
-if user_input:
-    # Set chat title to first user message if still named "New Chat"
-    if chat_data["chat_name"] == "New Chat":
-        chat_data["chat_name"] = user_input[:30]  # Limit title length
+        chat_data["messages"].append({"role": "user", "content": user_input})
         save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-    chat_data["messages"].append({"role": "user", "content": user_input})
-    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-    with st.chat_message("user"):
-        st.markdown(user_input)
+        with st.spinner("Thinking..."):
+            try:
+                response = client.chat.completions.create(
+                    model=models[selected_model],
+                    messages=chat_data["messages"],
+                    temperature=1,
+                    max_tokens=1024,
+                    top_p=1
+                )
+                bot_response = response.choices[0].message.content
+            except Exception as e:
+                bot_response = f"⚠️ Error: {str(e)}"
 
-    with st.spinner("Thinking..."):
-        try:
-            response = client.chat.completions.create(
-                model=models[selected_model],
-                messages=chat_data["messages"],
-                temperature=1,
-                max_tokens=1024,
-                top_p=1
-            )
-            bot_response = response.choices[0].message.content
-        except Exception as e:
-            bot_response = f"⚠️ Error: {str(e)}"
+        chat_data["messages"].append({"role": "assistant", "content": bot_response})
+        save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
-    chat_data["messages"].append({"role": "assistant", "content": bot_response})
-    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
-
-    with st.chat_message("assistant"):
-        st.markdown(bot_response)
-
+        with st.chat_message("assistant"):
+            st.markdown(bot_response)
