@@ -77,7 +77,7 @@ chats = load_chats()
 if "chats" not in st.session_state:
     st.session_state.chats = {}
 if "chat_names" not in st.session_state:
-    st.session_state.chat_names = {}
+    st.session_state.chat_names = {} 
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 if "rename_mode" not in st.session_state:
@@ -87,12 +87,17 @@ if "show_options" not in st.session_state:
 
 
 # Function to create a new chat
-def create_new_chat():
-    new_chat_id = str(uuid.uuid4())
-    new_chat_name = "New Chat"
-    st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
+# def create_new_chat():
+#     new_chat_id = str(uuid.uuid4())
+#     new_chat_name = "New Chat"
+#     st.session_state.chats[new_chat_id] = {"chat_name": new_chat_name, "messages": [], "model": list(models.keys())[0]}
+#     st.session_state.current_chat = new_chat_id
+    def create_new_chat():
+    new_chat_id = f"chat_{len(st.session_state.chats) + 1}"
+    st.session_state.chats[new_chat_id] = []
+    st.session_state.chat_names[new_chat_id] = "New Chat"  # ✅ Set default name
     st.session_state.current_chat = new_chat_id
-    save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
+    # save_chat(new_chat_id, new_chat_name, [], list(models.keys())[0])
 
 # Ensure at least one chat exists
 if not st.session_state.chats:
@@ -157,10 +162,16 @@ for message in chat_data["messages"]:
 # User input
 user_input = st.chat_input("Type your message...")
 if user_input:
-    # If it's a new chat and still named "New Chat", update it based on the first message
-    if st.session_state.chat_names[st.session_state.current_chat] == "New Chat":
-        # Extract a meaningful title from the first message (taking first 3 words)
-        extracted_title = " ".join(user_input.split()[:3]).capitalize()
+    # # If it's a new chat and still named "New Chat", update it based on the first message
+    # if st.session_state.chat_names[st.session_state.current_chat] == "New Chat":
+    #     # Extract a meaningful title from the first message (taking first 3 words)
+    #     extracted_title = " ".join(user_input.split()[:3]).capitalize()
+    #     st.session_state.chat_names[st.session_state.current_chat] = extracted_title
+    if (
+        st.session_state.current_chat in st.session_state.chat_names
+        and st.session_state.chat_names[st.session_state.current_chat] == "New Chat"
+    ):
+        extracted_title = " ".join(user_input.split()[:3]).capitalize()  # Take first 3 words
         st.session_state.chat_names[st.session_state.current_chat] = extracted_title
 
     # Append user input to chat history
