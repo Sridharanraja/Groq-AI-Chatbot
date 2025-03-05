@@ -134,13 +134,27 @@ for message in chat_data["messages"]:
         st.markdown(message["content"])
 
 # User Input
+# user_input = st.chat_input("Type your message...")
+# if user_input:
+#     chat_data["messages"].append({"role": "user", "content": user_input})
+#     save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+
+#     with st.chat_message("user"):
+#         st.markdown(user_input)
+# User input
 user_input = st.chat_input("Type your message...")
 if user_input:
-    chat_data["messages"].append({"role": "user", "content": user_input})
-    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+    # If it's a new chat and still named "New Chat", update it based on the first message
+    if st.session_state.chat_names[st.session_state.current_chat] == "New Chat":
+        # Extract a meaningful title from the first message (taking first 3 words)
+        extracted_title = " ".join(user_input.split()[:3]).capitalize()
+        st.session_state.chat_names[st.session_state.current_chat] = extracted_title
 
+    # Append user input to chat history
+    chat_history.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
+
 
     with st.spinner("Thinking..."):
         try:
