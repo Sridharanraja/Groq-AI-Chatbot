@@ -155,7 +155,14 @@ else:
 
 
 # Model selection (Saved per chat)
-selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
+# selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
+if isinstance(chat_data, dict) and "model" in chat_data:
+    selected_model = st.selectbox("Choose AI Model", list(models.keys()), 
+                                  index=list(models.keys()).index(chat_data["model"]), 
+                                  key=f"model_{chat_id}")
+else:
+    selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=0, key=f"model_{chat_id}")
+
 st.session_state.chats[chat_id]["model"] = selected_model
 save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
 
