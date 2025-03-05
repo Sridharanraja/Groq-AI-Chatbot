@@ -7,7 +7,7 @@ from groq import Groq
 import uuid
 
 # Firebase Setup
-cred = credentials.Certificate(".FB/groq-chatbot-firebase-adminsdk-fbsvc-ab1e7d4a51.json")  # Use your actual file
+cred = credentials.Certificate("./FB/groq-chatbot-firebase-adminsdk-fbsvc-ab1e7d4a51.json")  # Use your actual file
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
