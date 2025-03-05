@@ -156,10 +156,3 @@ if st.session_state.current_chat:
         chat_history.append({"role": "assistant", "content": bot_response})
         with st.chat_message("assistant"):
             st.markdown(bot_response)
-
-
-        chat_history.append({"role": "assistant", "content": bot_response})
-        save_chat_history()  # Save after every message
-
-        with st.chat_message("assistant"):
-            st.markdown(bot_response)
