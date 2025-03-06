@@ -187,8 +187,13 @@ def load_documents():
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
 text_chunks = text_splitter.split_text(load_documents())
 
+# embedding_model = "BAAI/bge-m3"
+# embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+
 embedding_model = 'sentence-transformers/all-MiniLM-L6-v2' #"BAAI/bge-m3"
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+
+embeddings = HuggingFaceEmbeddings(model_name='Sridharanraja/Groq-AI-Chatbot/Model/bge-m3')
 
 # Create FAISS Vector Store
 vector_store = FAISS.from_texts(text_chunks, embeddings)
