@@ -155,8 +155,8 @@ client_groq = Groq(api_key=API)
 # Available Models (Groq only)
 models = {
     "Llama 3 (8B)": (client_groq, "llama3-8b-8192"),
-    "llama-3.3-70b-versatile":(client_groq, "llama-3.3-70b-versatile"),
-    "llama-3.1-8b-instant": (client_groq,"llama-3.1-8b-instant"),
+    "llama-3 (versatile)":(client_groq, "llama-3.3-70b-versatile"),
+    "llama-3(instant)": (client_groq,"llama-3.1-8b-instant"),
     "mixtral-8x7b-32768":(client_groq,"mixtral-8x7b-32768")
 }
 
@@ -193,7 +193,7 @@ text_chunks = text_splitter.split_text(load_documents())
 embedding_model = 'sentence-transformers/all-MiniLM-L6-v2' #"BAAI/bge-m3"
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
 
-embeddings = HuggingFaceEmbeddings(model_name='Sridharanraja/Groq-AI-Chatbot/Model/bge-m3')
+# embeddings = HuggingFaceEmbeddings(model_name='Sridharanraja/Groq-AI-Chatbot/Model/bge-m3')
 
 # Create FAISS Vector Store
 vector_store = FAISS.from_texts(text_chunks, embeddings)
