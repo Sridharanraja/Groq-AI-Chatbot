@@ -154,8 +154,10 @@ client_groq = Groq(api_key=API)
 
 # Available Models (Groq only)
 models = {
-    "Llama 3 (8B) - Groq": (client_groq, "llama3-8b-8192"),
-    "Mixtral - Groq": (client_groq, "mixtral-8x7b-32768")
+    "Llama 3 (8B)": (client_groq, "llama3-8b-8192"),
+    "llama-3.3-70b-versatile":(client_groq, "llama-3.3-70b-versatile"),
+    "llama-3.1-8b-instant": (client_groq,"llama-3.1-8b-instant"),
+    "mixtral-8x7b-32768":(client_groq,"mixtral-8x7b-32768")
 }
 
 # Load and Process Documents (adapt path to your environment)
