@@ -133,7 +133,7 @@ from unstructured.partition.docx import partition_docx
 from unstructured.partition.odt import partition_odt
 from unstructured.partition.doc import partition_doc
 
-# Streamlit Page Config
+# Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot", page_icon="🧠")
 
 # Database Connection
@@ -153,16 +153,16 @@ conn.commit()
 # Initialize Groq Client
 client_groq = Groq(api_key=API)
 
-# Available AI Models
+# Available Models (Groq only)
 models = {
     "Llama 3 (8B)": (client_groq, "llama3-8b-8192"),
     "llama-3 (versatile)": (client_groq, "llama-3.3-70b-versatile"),
-    "llama-3 (instant)": (client_groq, "llama-3.1-8b-instant"),
+    "llama-3(instant)": (client_groq, "llama-3.1-8b-instant"),
     "mixtral-8x7b-32768": (client_groq, "mixtral-8x7b-32768")
 }
 
-# Load and Process Documents for RAG
-DATA_DIR = "./sheets/DATA/"  # Update this path to your document folder
+# Load and Process Documents (adapt path to your environment)
+DATA_DIR = "./sheets/DATA/"  # Update this to your folder containing docx/odt/doc files
 
 def load_documents():
     files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith((".docx", ".odt", ".doc"))]
@@ -184,16 +184,16 @@ def load_documents():
 
     return all_text
 
-# Vectorize Documents for Retrieval
+# Vectorize Documents (Using HuggingFace Embeddings)
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
 text_chunks = text_splitter.split_text(load_documents())
 
-embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
 
+# Create FAISS Vector Store
 vector_store = FAISS.from_texts(text_chunks, embeddings)
 
-# Function to retrieve relevant documents
 def retrieve_relevant_docs(query):
     return vector_store.similarity_search(query, k=8)
 
@@ -203,17 +203,10 @@ if "chats" not in st.session_state:
         row[0]: {"chat_name": row[2], "messages": json.loads(row[3]), "model": row[4]}
         for row in cursor.execute("SELECT * FROM chats")
     }
-
-# Ensure at least one chat exists
-if not st.session_state.chats:
-    chat_id = str(uuid.uuid4())
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)"}
-    cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", 
-                    (chat_id, "user", "New Chat", json.dumps([]), "Llama 3 (8B)"))
-    conn.commit()
-    st.session_state.current_chat = chat_id
-else:
-    st.session_state.current_chat = list(st.session_state.chats.keys())[-1]
+if "current_chat" not in st.session_state:
+    st.session_state.current_chat = None
+if "rename_mode" not in st.session_state:
+    st.session_state.rename_mode = None
 
 # Sidebar for Chat Management
 st.sidebar.title("💬 Chats")
@@ -221,7 +214,7 @@ st.sidebar.title("💬 Chats")
 if st.sidebar.button("➕ New Chat"):
     chat_id = str(uuid.uuid4())
     st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)"}
-    cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", 
+    cursor.execute("REPLACE INTO chats VALUES (?, ?, ?, ?, ?)", 
                     (chat_id, "user", "New Chat", json.dumps([]), "Llama 3 (8B)"))
     conn.commit()
     st.session_state.current_chat = chat_id
@@ -233,69 +226,54 @@ for chat_id, chat_data in st.session_state.chats.items():
     if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
         st.rerun()
-
+    
     if col2.button("✏️", key=f"rename_{chat_id}"):
         st.session_state.rename_mode = chat_id
         st.rerun()
-
+    
     if col3.button("❌", key=f"delete_{chat_id}"):
         del st.session_state.chats[chat_id]
         cursor.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
         conn.commit()
-        st.session_state.current_chat = None if not st.session_state.chats else list(st.session_state.chats.keys())[-1]
+        st.session_state.current_chat = None if not st.session_state.chats else list(st.session_state.chats.keys())[0]
         st.rerun()
 
-    if st.session_state.rename_mode == chat_id:
-        new_name = st.text_input("Rename Chat:", value=chat_data["chat_name"], key=f"rename_input_{chat_id}")
-        if st.button("✔️ Save", key=f"save_rename_{chat_id}"):
-            st.session_state.chats[chat_id]["chat_name"] = new_name
-            cursor.execute("UPDATE chats SET chat_name = ? WHERE chat_id = ?", (new_name, chat_id))
-            conn.commit()
-            st.session_state.rename_mode = None
-            st.rerun()
-        if st.button("❌ Cancel", key=f"cancel_rename_{chat_id}"):
-            st.session_state.rename_mode = None
-            st.rerun()
+if st.session_state.rename_mode:
+    new_name = st.sidebar.text_input("Rename Chat:", value=st.session_state.chats[st.session_state.rename_mode]["chat_name"])
+    if st.sidebar.button("✔️ Save"):
+        st.session_state.chats[st.session_state.rename_mode]["chat_name"] = new_name
+        cursor.execute("UPDATE chats SET chat_name = ? WHERE chat_id = ?", (new_name, st.session_state.rename_mode))
+        conn.commit()
+        st.session_state.rename_mode = None
+        st.rerun()
+    if st.sidebar.button("❌ Cancel"):
+        st.session_state.rename_mode = None
+        st.rerun()
 
-# Main Chat UI
 st.title("🧠 Groq RAG-Enhanced Chatbot")
 
-chat_id = st.session_state.get("current_chat", None)
+chat_id = st.session_state.get("current_chat")
 
 if chat_id:
     chat_data = st.session_state.chats[chat_id]
-
-    # Model selection dropdown
-    model_name = st.selectbox(
-        "Choose AI Model",
-        list(models.keys()),
-        index=list(models.keys()).index(chat_data["model"])
-    )
+    
+    model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
     chat_data["model"] = model_name
-
-    # Display previous messages
+    
     for msg in chat_data["messages"]:
         st.chat_message(msg["role"]).markdown(msg["content"])
-
+    
     user_input = st.chat_input("Type your message...")
     if user_input:
-        if chat_data["chat_name"] == "New Chat":  
-            chat_data["chat_name"] = user_input[:20]  
-            cursor.execute("UPDATE chats SET chat_name = ? WHERE chat_id = ?", 
-                            (chat_data["chat_name"], chat_id))
-            conn.commit()
-
         st.chat_message("user").markdown(user_input)
         chat_data["messages"].append({"role": "user", "content": user_input})
-
-        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", 
-                        (json.dumps(chat_data["messages"]), chat_id))
+        
+        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
         conn.commit()
-
+        
         with st.spinner("Thinking..."):
             relevant_docs = retrieve_relevant_docs(user_input)
             context = "\n".join([doc.page_content for doc in relevant_docs])
-
             full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
             client, model_id = models[model_name]
             response = client.chat.completions.create(
@@ -305,11 +283,8 @@ if chat_id:
                 max_tokens=512
             )
             bot_reply = response.choices[0].message.content
-
+        
         chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-
-        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", 
-                        (json.dumps(chat_data["messages"]), chat_id))
+        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
         conn.commit()
-
         st.chat_message("assistant").markdown(bot_reply)
