@@ -1,36 +1,32 @@
 API='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'
 
-import streamlit as st
-import sqlite3
+import os
 import json
 import uuid
-import os
+import sqlite3
+import streamlit as st
 from groq import Groq
-import time
-from langchain_openai import OpenAI
-from langchain_community.document_loaders import UnstructuredFileLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain.chains import create_retrieval_chain
-from langchain_chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
+from openai import OpenAI
 from dotenv import load_dotenv
+from langchain.document_loaders import UnstructuredFileLoader
+from langchain.vectorstores import FAISS
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Load environment variables
-load_dotenv()
+load_dotenv("./sheets/.env")
+GROQ_API_KEY = API
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Initialize Streamlit app
-st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
+st.set_page_config(page_title="Groq & OpenAI RAG Chatbot", page_icon="🧠")
 
 # Database Connection
 conn = sqlite3.connect("chat_database.db", check_same_thread=False)
 cursor = conn.cursor()
-
-# Create table if not exists
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS chats (
     chat_id TEXT PRIMARY KEY,
+    user_id TEXT,
     chat_name TEXT,
     messages TEXT,
     model TEXT
@@ -38,158 +34,87 @@ CREATE TABLE IF NOT EXISTS chats (
 """)
 conn.commit()
 
-# Initialize Groq API
-client = Groq(api_key=API)
+# Initialize APIs
+client_groq = Groq(api_key=GROQ_API_KEY)
+client_openai = OpenAI(api_key=OPENAI_API_KEY)
 
-# Available models
 models = {
-    "Llama 3 (8B)": "llama3-8b-8192",
-    "Llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
-    "Llama-3.1-8b-instant": "llama-3.1-8b-instant",
-    "Mixtral-8x7b-32768": "mixtral-8x7b-32768",
-    "OpenAI GPT-4": "gpt-4",  # Added OpenAI
+    "Llama 3 (8B) - Groq": (client_groq, "llama3-8b-8192"),
+    "Mixtral - Groq": (client_groq, "mixtral-8x7b-32768"),
+    "GPT-4 - OpenAI": (client_openai, "gpt-4"),
+    "GPT-3.5 - OpenAI": (client_openai, "gpt-3.5-turbo"),
 }
 
-# Load chat history from DB
-def load_chats():
-    cursor.execute("SELECT * FROM chats")
-    rows = cursor.fetchall()
-    chats = {}
-    for row in rows:
-        chat_id, chat_name, messages, model = row
-        chats[chat_id] = {
-            "chat_name": chat_name,
-            "messages": json.loads(messages),
-            "model": model
-        }
-    return chats
+# Load and Process Documents
+DATA_DIR = "./sheets/DATA/"
 
-# Save chat history to DB
-def save_chat(chat_id, chat_name, messages, model):
-    cursor.execute(
-        "REPLACE INTO chats (chat_id, chat_name, messages, model) VALUES (?, ?, ?, ?)",
-        (chat_id, chat_name, json.dumps(messages), model)
-    )
-    conn.commit()
+def load_documents():
+    files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith((".docx", ".odt", ".doc"))]
+    all_text = ""
+    for file in files:
+        loader = UnstructuredFileLoader(file)
+        docs = loader.load()
+        for doc in docs:
+            all_text += doc.page_content + "\n"
+    return all_text
 
-# Delete chat from DB
-def delete_chat(chat_id):
-    cursor.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
-    conn.commit()
-    del st.session_state.chats[chat_id]
-    if st.session_state.current_chat == chat_id:
-        st.session_state.current_chat = list(st.session_state.chats.keys())[0] if st.session_state.chats else None
+# Vectorize Documents
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+text_chunks = text_splitter.split_text(load_documents())
+embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+vector_store = FAISS.from_texts(text_chunks, embeddings)
 
-# Load all chats
-chats = load_chats()
+def retrieve_relevant_docs(query):
+    return vector_store.similarity_search(query, k=3)
 
-# Initialize session state
-if "chats" not in st.session_state:
-    st.session_state.chats = chats
-if "current_chat" not in st.session_state:
-    st.session_state.current_chat = None
-if "rename_mode" not in st.session_state:
-    st.session_state.rename_mode = None
+# Load chats
+st.session_state.chats = {row[0]: {"chat_name": row[2], "messages": json.loads(row[3]), "model": row[4]} for row in cursor.execute("SELECT * FROM chats")}
 
-# Function to create a new chat
-def create_new_chat():
-    new_chat_id = str(uuid.uuid4())
-    st.session_state.chats[new_chat_id] = {"chat_name": "New Chat", "messages": [], "model": list(models.keys())[0]}
-    st.session_state.current_chat = new_chat_id
-    save_chat(new_chat_id, "New Chat", [], list(models.keys())[0])
-
-# Ensure at least one chat exists
-if not st.session_state.chats:
-    create_new_chat()
-
-# Sidebar for chat management
+# Sidebar UI for Chats
 st.sidebar.title("💬 Chats")
 if st.sidebar.button("➕ New Chat"):
-    create_new_chat()
+    chat_id = str(uuid.uuid4())
+    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": list(models.keys())[0]}
+    cursor.execute("REPLACE INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, "user", "New Chat", json.dumps([]), list(models.keys())[0]))
+    conn.commit()
     st.rerun()
 
 for chat_id, chat_data in list(st.session_state.chats.items()):
-    col1, col2, col3 = st.sidebar.columns([0.7, 0.15, 0.15])
-
-    if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
+    if st.sidebar.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
         st.session_state.current_chat = chat_id
         st.rerun()
 
-    if col2.button("✎", key=f"rename_{chat_id}"):
-        st.session_state.rename_mode = chat_id
-        st.rerun()
+# Main Chat UI
+st.title("🧠 RAG-Enhanced Chatbot")
+chat_id = st.session_state.get("current_chat", None)
+if chat_id:
+    chat_data = st.session_state.chats[chat_id]
+    model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
+    chat_data["model"] = model_name
 
-    if col3.button("❌", key=f"delete_{chat_id}"):
-        delete_chat(chat_id)
-        st.rerun()
+    # Display chat history
+    for msg in chat_data["messages"]:
+        st.chat_message(msg["role"]).markdown(msg["content"])
 
-    if st.session_state.rename_mode == chat_id:
-        new_name = st.text_input("Rename Chat:", value=chat_data["chat_name"], key=f"rename_input_{chat_id}")
-        if st.button("✔️ Save", key=f"save_{chat_id}"):
-            st.session_state.chats[chat_id]["chat_name"] = new_name
-            save_chat(chat_id, new_name, st.session_state.chats[chat_id]["messages"], st.session_state.chats[chat_id]["model"])
-            st.session_state.rename_mode = None
-            st.rerun()
-        if st.button("❌ Cancel", key=f"cancel_{chat_id}"):
-            st.session_state.rename_mode = None
-            st.rerun()
+    user_input = st.chat_input("Type your message...")
+    if user_input:
+        st.chat_message("user").markdown(user_input)
+        chat_data["messages"].append({"role": "user", "content": user_input})
+        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
+        conn.commit()
 
-# RAG Integration
-st.title("RAG Application")
-
-# Select folder path for document processing
-folder_path = "./sheets/DATA/"
-
-if folder_path and os.path.isdir(folder_path):
-    # Get all document files in the folder
-    files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith((".doc", ".docx", ".odt"))]
-
-    if files:
-        # st.write(f"Found {len(files)} document(s) in the folder.")
-
-        # Load documents
-        loader = UnstructuredFileLoader(files=files)
-        data = loader.load()
-
-        # Split text into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
-        docs = text_splitter.split_documents(data)
-
-        # Create a vectorstore
-        vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings())
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
-
-        # Initialize LLM
-        llm = OpenAI(temperature=0.4, max_tokens=500)
-
-        # Chat input
-        query = st.chat_input("Say something: ")
-
-        if query:
-            system_prompt = (
-                "You are an assistant for question-answering tasks. "
-                "Use the following pieces of retrieved context to answer "
-                "the question. If you don't know the answer, say that you "
-                "don't know. Use three sentences maximum and keep the "
-                "answer concise."
-                "\n\n"
-                "{context}"
+        with st.spinner("Thinking..."):
+            relevant_docs = retrieve_relevant_docs(user_input)
+            context = "\n".join([doc.page_content for doc in relevant_docs])
+            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
+            client, model_id = models[model_name]
+            response = client.chat.completions.create(
+                model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.7, max_tokens=512
             )
+            bot_reply = response.choices[0].message.content
 
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", "{input}"),
-            ])
+        chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
+        conn.commit()
 
-            question_answer_chain = create_stuff_documents_chain(llm, prompt)
-            rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-            response = rag_chain.invoke({"input": query})
-
-            st.write(response["answer"])
-
-    else:
-        st.warning("No documents found in the specified folder. Please check the path and ensure it contains valid documents.")
-else:
-    st.warning("Please enter a valid folder path.")
-
-
+        st.chat_message("assistant").markdown(bot_reply)
