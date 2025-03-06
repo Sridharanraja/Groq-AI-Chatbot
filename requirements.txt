@@ -2,6 +2,7 @@ streamlit
 opencv-python-headless
 groq
 db-sqlite3
+openai
 faiss-cpu
 langchain
 pymupdf
