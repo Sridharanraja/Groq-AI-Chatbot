@@ -7,5 +7,5 @@ langchain
 pymupdf
 python-dotenv
 tiktoken
-unstructured
+unstructured[doc]
 sentence-transformers
