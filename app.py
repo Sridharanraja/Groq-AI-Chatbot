@@ -313,4 +313,3 @@ if chat_id:
         conn.commit()
 
         st.chat_message("assistant").markdown(bot_reply)
-
