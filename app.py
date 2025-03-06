@@ -4,7 +4,21 @@ import streamlit as st
 import sqlite3
 import json
 import uuid
+import os
 from groq import Groq
+import time
+from langchain_openai import OpenAI
+from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain.chains import create_retrieval_chain
+from langchain_chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq AI Chatbot", page_icon="🧠")
@@ -33,6 +47,7 @@ models = {
     "Llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
     "Llama-3.1-8b-instant": "llama-3.1-8b-instant",
     "Mixtral-8x7b-32768": "mixtral-8x7b-32768",
+    "OpenAI GPT-4": "gpt-4",  # Added OpenAI
 }
 
 # Load chat history from DB
@@ -119,55 +134,62 @@ for chat_id, chat_data in list(st.session_state.chats.items()):
             st.session_state.rename_mode = None
             st.rerun()
 
-if st.session_state.current_chat is None and st.session_state.chats:
-    st.session_state.current_chat = list(st.session_state.chats.keys())[0]
+# RAG Integration
+st.title("RAG Application")
 
-# Main Chat UI
-st.title("🧠 Groq AI Chatbot")
-chat_id = st.session_state.current_chat
-if chat_id:
-    chat_data = st.session_state.chats[chat_id]
-    st.subheader(f"Session: {chat_data['chat_name']}")
+# Select folder path for document processing
+folder_path = "./sheets/DATA/"
 
-    # Model selection (Saved per chat)
-    selected_model = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]), key=f"model_{chat_id}")
-    st.session_state.chats[chat_id]["model"] = selected_model
-    save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+if folder_path and os.path.isdir(folder_path):
+    # Get all document files in the folder
+    files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith((".doc", ".docx", ".odt"))]
 
-    # Display chat history
-    for message in chat_data["messages"]:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    if files:
+        # st.write(f"Found {len(files)} document(s) in the folder.")
 
-    # User Input
-    user_input = st.chat_input("Type your message...")
-    if user_input:
-        # Set chat title to first user message if still named "New Chat"
-        if chat_data["chat_name"] == "New Chat":
-            chat_data["chat_name"] = user_input[:30]  # Limit title length
-            save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+        # Load documents
+        loader = UnstructuredFileLoader(files=files)
+        data = loader.load()
 
-        chat_data["messages"].append({"role": "user", "content": user_input})
-        save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+        # Split text into chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
+        docs = text_splitter.split_documents(data)
 
-        with st.chat_message("user"):
-            st.markdown(user_input)
+        # Create a vectorstore
+        vectorstore = Chroma.from_documents(documents=docs, embedding=OpenAIEmbeddings())
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
 
-        with st.spinner("Thinking..."):
-            try:
-                response = client.chat.completions.create(
-                    model=models[selected_model],
-                    messages=chat_data["messages"],
-                    temperature=1,
-                    max_tokens=1024,
-                    top_p=1
-                )
-                bot_response = response.choices[0].message.content
-            except Exception as e:
-                bot_response = f"⚠️ Error: {str(e)}"
+        # Initialize LLM
+        llm = OpenAI(temperature=0.4, max_tokens=500)
 
-        chat_data["messages"].append({"role": "assistant", "content": bot_response})
-        save_chat(chat_id, chat_data["chat_name"], chat_data["messages"], selected_model)
+        # Chat input
+        query = st.chat_input("Say something: ")
 
-        with st.chat_message("assistant"):
-            st.markdown(bot_response)
+        if query:
+            system_prompt = (
+                "You are an assistant for question-answering tasks. "
+                "Use the following pieces of retrieved context to answer "
+                "the question. If you don't know the answer, say that you "
+                "don't know. Use three sentences maximum and keep the "
+                "answer concise."
+                "\n\n"
+                "{context}"
+            )
+
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", "{input}"),
+            ])
+
+            question_answer_chain = create_stuff_documents_chain(llm, prompt)
+            rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+            response = rag_chain.invoke({"input": query})
+
+            st.write(response["answer"])
+
+    else:
+        st.warning("No documents found in the specified folder. Please check the path and ensure it contains valid documents.")
+else:
+    st.warning("Please enter a valid folder path.")
+
+
