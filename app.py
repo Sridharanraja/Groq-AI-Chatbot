@@ -214,9 +214,9 @@ st.sidebar.title("💬 Chats")
 
 if st.sidebar.button("➕ New Chat"):
     chat_id = str(uuid.uuid4())
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B) - Groq"}
+    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)"}
     cursor.execute("REPLACE INTO chats VALUES (?, ?, ?, ?, ?)", 
-                    (chat_id, "user", "New Chat", json.dumps([]), "Llama 3 (8B) - Groq"))
+                    (chat_id, "user", "New Chat", json.dumps([]), "Llama 3 (8B)"))
     conn.commit()
     st.session_state.current_chat = chat_id
     st.rerun()
