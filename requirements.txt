@@ -2,12 +2,10 @@ streamlit
 opencv-python-headless
 groq
 db-sqlite3
+faiss-cpu
 langchain
-langchain_community
-langchain_openai
+pymupdf
 python-dotenv
-langchain_experimental
-sentence-transformers
-langchain_chroma
-langchainhub
+tiktoken
 unstructured
+sentence-transformers
