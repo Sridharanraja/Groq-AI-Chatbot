@@ -11,3 +11,9 @@ tiktoken
 unstructured[doc]
 sentence-transformers
 langchain-community
+langchain
+langchain_openai
+langchain_experimental
+langchain_chroma
+langchainhub
+unstructured
