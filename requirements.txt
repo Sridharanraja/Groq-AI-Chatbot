@@ -10,3 +10,4 @@ python-dotenv
 tiktoken
 unstructured[doc]
 sentence-transformers
+langchain-community
