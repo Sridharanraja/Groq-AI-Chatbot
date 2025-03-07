@@ -199,12 +199,16 @@ def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=8)  # Adjust k as needed
 
     if not results:  # No relevant docs found
-        return None, "Internal data source not available."
+        return None, None
 
-    doc_names = list(set(res[0].metadata["source"] for res in results))
-    doc_texts = "\n".join([f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}" for res in results])
+    doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
+    doc_texts = "\n".join([
+        f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}"
+        for res in results if res[0] and res[0].metadata
+    ])
 
     return doc_names, doc_texts  # Return doc names & text
+
 
 
 # Load existing chats
@@ -305,13 +309,14 @@ if chat_id:
         with st.spinner("Thinking..."):
             relevant_docs = retrieve_relevant_docs(user_input)
 
-            if relevant_docs:
-                source_text = ", ".join(set(doc[0] for doc in relevant_docs))
+            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+                source_text = ", ".join(relevant_docs[0])  # Get document names
                 data_source = f"**Data Source: Internal Data Reference Documents:** {source_text}"
-                context = "\n".join([f"**Source: {doc[0]}**\n{doc[1]}" for doc in relevant_docs])
+                context = relevant_docs[1]  # Get document text
             else:
                 data_source = f"**Data Source: {model_name}**"
                 context = "No relevant documents found. Using AI model only."
+
 
             st.markdown(data_source)
             full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
