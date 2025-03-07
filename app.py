@@ -198,27 +198,28 @@ else:
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
 
-    # if not results:  # No relevant docs found
-    #     return None, None
-
-    # doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
-    # doc_texts = "\n".join([
-    #     f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}"
-    #     for res in results if res[0] and res[0].metadata
-    # ])
-
-    # return doc_names, doc_texts  # Return doc names & text
-
-    if not results:
+    if not results:  # No relevant docs found
         return None, None
 
     doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
     doc_texts = "\n".join([
+        # f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}"
         f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
         for res in results if res[0] and res[0].metadata
     ])
 
-    return doc_names, doc_texts
+    return doc_names, doc_texts  # Return doc names & text
+
+    # if not results:
+    #     return None, None
+
+    # doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
+    # doc_texts = "\n".join([
+    #     f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
+    #     for res in results if res[0] and res[0].metadata
+    # ])
+
+    # return doc_names, doc_texts
 
 
 
@@ -318,48 +319,48 @@ if chat_id:
         conn.commit()
 
 
-        with st.spinner("Thinking..."):
-            relevant_docs = retrieve_relevant_docs(user_input)
-        
-            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                source_text = ", ".join(relevant_docs[0])  # Get document names
-                data_source = f"**Data Source: Internal Data: {source_text}**"
-                context = relevant_docs[1]  # Get document text
-            else:
-                data_source = f"**Data Source: {model_name}**"
-                context = "No relevant documents found. Using AI model only."
-        
-            st.markdown(data_source)
-            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
-            client, model_id = models[model_name]
-            response = client.chat.completions.create(
-                model=model_id,
-                messages=[{"role": "user", "content": full_prompt[:4096]}],
-                temperature=0.5,
-                max_tokens=256
-            )
-            bot_reply = response.choices[0].message.content
-        
-        st.chat_message("assistant").markdown(bot_reply)
-
-        
         # with st.spinner("Thinking..."):
         #     relevant_docs = retrieve_relevant_docs(user_input)
-
+        
         #     if relevant_docs and relevant_docs[0] and relevant_docs[1]:
         #         source_text = ", ".join(relevant_docs[0])  # Get document names
-        #         data_source = f"**Data Source: Internal Data Reference Documents:** {source_text}"
+        #         data_source = f"**Data Source: Internal Data: {source_text}**"
         #         context = relevant_docs[1]  # Get document text
         #     else:
         #         data_source = f"**Data Source: {model_name}**"
         #         context = "No relevant documents found. Using AI model only."
-
-
+        
         #     st.markdown(data_source)
         #     full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
         #     client, model_id = models[model_name]
-        #     response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=256)
+        #     response = client.chat.completions.create(
+        #         model=model_id,
+        #         messages=[{"role": "user", "content": full_prompt[:4096]}],
+        #         temperature=0.5,
+        #         max_tokens=256
+        #     )
         #     bot_reply = response.choices[0].message.content
-
-        # chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+        
         # st.chat_message("assistant").markdown(bot_reply)
+
+        
+        with st.spinner("Thinking..."):
+            relevant_docs = retrieve_relevant_docs(user_input)
+
+            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+                source_text = ", ".join(relevant_docs[0])  # Get document names
+                data_source = f"**Data Source: Internal Data Reference Documents:** {source_text}"
+                context = relevant_docs[1]  # Get document text
+            else:
+                data_source = f"**Data Source: {model_name}**"
+                context = "No relevant documents found. Using AI model only."
+
+
+            st.markdown(data_source)
+            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
+            client, model_id = models[model_name]
+            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=256)
+            bot_reply = response.choices[0].message.content
+
+        chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+        st.chat_message("assistant").markdown(bot_reply)
