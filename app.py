@@ -196,18 +196,29 @@ else:
     vector_store.save_local(VECTOR_STORE_PATH)
 
 def retrieve_relevant_docs(query):
-    results = vector_store.similarity_search_with_score(query, k=8)  # Adjust k as needed
+    results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
 
-    if not results:  # No relevant docs found
+    # if not results:  # No relevant docs found
+    #     return None, None
+
+    # doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
+    # doc_texts = "\n".join([
+    #     f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}"
+    #     for res in results if res[0] and res[0].metadata
+    # ])
+
+    # return doc_names, doc_texts  # Return doc names & text
+
+    if not results:
         return None, None
 
     doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
     doc_texts = "\n".join([
-        f"**Source: {res[0].metadata['source']}**\n{res[0].page_content}"
+        f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
         for res in results if res[0] and res[0].metadata
     ])
 
-    return doc_names, doc_texts  # Return doc names & text
+    return doc_names, doc_texts
 
 
 
@@ -323,7 +334,7 @@ if chat_id:
             client, model_id = models[model_name]
             response = client.chat.completions.create(
                 model=model_id,
-                messages=[{"role": "user", "content": full_prompt}],
+                messages=[{"role": "user", "content": full_prompt[:4096]}],
                 temperature=0.5,
                 max_tokens=256
             )
