@@ -342,6 +342,19 @@ from langchain.embeddings import HuggingFaceEmbeddings
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot", page_icon="🧠")
 
+# Ensure session state variables are initialized
+if "chats" not in st.session_state:
+    st.session_state.chats = {}  # Stores chat sessions
+
+if "current_chat" not in st.session_state:
+    st.session_state.current_chat = None  # Track current chat ID
+
+if "rename_mode" not in st.session_state:
+    st.session_state.rename_mode = None  # Manage renaming state
+
+if "show_options" not in st.session_state:
+    st.session_state.show_options = {}  # Controls visibility of chat options
+
 # Database Connection
 conn = sqlite3.connect("chat_database.db", check_same_thread=False)
 cursor = conn.cursor()
