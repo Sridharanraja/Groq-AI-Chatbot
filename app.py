@@ -304,31 +304,29 @@ if chat_id:
         cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
         conn.commit()
 
-        import streamlit as st
-
     # Replace with your GitHub repo details
     GITHUB_REPO_URL = DATA_DIR
     
     st.write("Download the Data Source Documents here:")
     
-    with st.spinner("Thinking..."):
-        relevant_docs = retrieve_relevant_docs(user_input)
-    
-        if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-            # Convert filenames into GitHub download links
-            source_text = "\n".join([f"🔗 [{doc}]({GITHUB_REPO_URL}{doc})" for doc in relevant_docs[0]])
-            data_source = f"**Data Source: Internal Data Reference Documents:**\n\n{source_text}"
-            context = relevant_docs[1]  # Get document text
-        else:
-            data_source = f"**Data Source: {model_name}**"
-            context = "No relevant documents found. Using AI model only."
-    
-    st.markdown(data_source, unsafe_allow_html=True)
-    
-    full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
-    client, model_id = models[model_name]
-    response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
-    bot_reply = response.choices[0].message.content
+        with st.spinner("Thinking..."):
+            relevant_docs = retrieve_relevant_docs(user_input)
+        
+            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+                # Convert filenames into GitHub download links
+                source_text = "\n".join([f"🔗 [{doc}]({GITHUB_REPO_URL}{doc})" for doc in relevant_docs[0]])
+                data_source = f"**Data Source: Internal Data Reference Documents:**\n\n{source_text}"
+                context = relevant_docs[1]  # Get document text
+            else:
+                data_source = f"**Data Source: {model_name}**"
+                context = "No relevant documents found. Using AI model only."
+        
+            st.markdown(data_source, unsafe_allow_html=True)
+            
+            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
+            client, model_id = models[model_name]
+            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
+            bot_reply = response.choices[0].message.content
 
 
         # with st.spinner("Thinking..."):
