@@ -304,23 +304,43 @@ if chat_id:
         cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
         conn.commit()
 
+        st.write("Download the Data Source Documents here:")
+
         with st.spinner("Thinking..."):
             relevant_docs = retrieve_relevant_docs(user_input)
-
+        
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                source_text = ", ".join(relevant_docs[0])  # Get document names
-                data_source = f"**Data Source: Internal Data Reference Documents:** {source_text}"
+                source_text = "\n".join([f"🔗 [{doc}](./{doc})" for doc in relevant_docs[0]])  # Create clickable links
+                data_source = f"**Data Source: Internal Data Reference Documents**\n{source_text}"
                 context = relevant_docs[1]  # Get document text
             else:
                 data_source = f"**Data Source: {model_name}**"
                 context = "No relevant documents found. Using AI model only."
+        
+        st.markdown(data_source, unsafe_allow_html=True)
+        
+        full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
+        client, model_id = models[model_name]
+        response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
+        bot_reply = response.choices[0].message.content
+
+        # with st.spinner("Thinking..."):
+        #     relevant_docs = retrieve_relevant_docs(user_input)
+
+        #     if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+        #         source_text = ", ".join(relevant_docs[0])  # Get document names
+        #         data_source = f"**Data Source: Internal Data Reference Documents:** {source_text}"
+        #         context = relevant_docs[1]  # Get document text
+        #     else:
+        #         data_source = f"**Data Source: {model_name}**"
+        #         context = "No relevant documents found. Using AI model only."
 
 
-            st.markdown(data_source)
-            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
-            client, model_id = models[model_name]
-            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
-            bot_reply = response.choices[0].message.content
+        #     st.markdown(data_source)
+        #     full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
+        #     client, model_id = models[model_name]
+        #     response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
+        #     bot_reply = response.choices[0].message.content
 
         chat_data["messages"].append({"role": "assistant", "content": bot_reply})
         st.chat_message("assistant").markdown(bot_reply)
