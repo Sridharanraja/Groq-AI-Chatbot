@@ -17,3 +17,6 @@ langchain_experimental
 langchain_chroma
 langchainhub
 unstructured
+torch
+torchvision
+torchaudio
