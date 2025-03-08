@@ -312,7 +312,7 @@ if chat_id:
         
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
                 # Convert filenames into clickable download links
-                source_text = "<br>".join([f'<a href="{GITHUB_REPO_URL}{doc}" download style="text-decoration: none; color: black; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+                source_text = "<br>".join([f'<a href="{GITHUB_REPO_URL}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
                 data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
                 context = relevant_docs[1]  # Get document text
             else:
