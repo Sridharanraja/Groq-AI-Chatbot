@@ -303,11 +303,11 @@ if chat_id:
         chat_data["messages"].append({"role": "user", "content": user_input})
         cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
         conn.commit()
-
-    # Replace with your GitHub repo details
-    GITHUB_REPO_URL = DATA_DIR
     
-    st.write("Download the Data Source Documents here:")
+        # Replace with your GitHub repo details
+        GITHUB_REPO_URL = DATA_DIR
+        
+        st.write("Download the Data Source Documents here:")
     
         with st.spinner("Thinking..."):
             relevant_docs = retrieve_relevant_docs(user_input)
