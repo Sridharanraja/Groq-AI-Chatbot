@@ -159,7 +159,7 @@ models = {
     "mixtral-8x7b-32768": (client_groq, "mixtral-8x7b-32768")
 }
 
-# Load and Process Documents
+# Load and Process Documents (adapt path to your environment)
 DATA_DIR = "./sheets/DATA/"  # Update this to your folder containing docx/odt/doc files
 VECTOR_STORE_PATH = "vector_store"
 
@@ -171,11 +171,11 @@ def load_documents():
         try:
             with open(file, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-            documents.append({"source": os.path.basename(file), "content": content, "path": file})
+            documents.append({"source": os.path.basename(file), "content": content})
         except Exception as e:
             print(f"Error processing {file}: {e}")
 
-    return documents
+    return documents, files  # Return both documents and file paths
 
 # Vectorization
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
@@ -186,7 +186,7 @@ embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
 if os.path.exists(VECTOR_STORE_PATH):
     vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
 else:
-    documents = load_documents()
+    documents, _ = load_documents()
     text_chunks = [(doc["source"], chunk) for doc in documents for chunk in text_splitter.split_text(doc["content"])]
     vector_store = FAISS.from_texts(
         [chunk[1] for chunk in text_chunks], 
@@ -198,7 +198,7 @@ else:
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
 
-    if not results:
+    if not results:  # No relevant docs found
         return None, None, None
 
     doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
@@ -206,9 +206,12 @@ def retrieve_relevant_docs(query):
         f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
         for res in results if res[0] and res[0].metadata
     ])
-    doc_paths = [os.path.join(DATA_DIR, doc) for doc in doc_names]
     
-    return doc_names, doc_texts, doc_paths
+    # Get file paths
+    _, file_paths = load_documents()
+    doc_paths = [path for path in file_paths if os.path.basename(path) in doc_names]
+
+    return doc_names, doc_texts, doc_paths  # Return doc names, text, and file paths
 
 # Main Chat UI
 st.title("🧠 Groq RAG-Enhanced Chatbot")
@@ -232,15 +235,21 @@ if chat_id:
         with st.spinner("Thinking..."):
             relevant_docs, doc_texts, doc_paths = retrieve_relevant_docs(user_input)
 
-            if relevant_docs:
-                st.markdown("**Data Source: Internal Data Reference Documents**")
-                for doc_name, doc_path in zip(relevant_docs, doc_paths):
-                    st.markdown(f"[🔗 {doc_name}](file://{doc_path})")
-            else:
-                st.markdown(f"**Data Source: {model_name}**")
-                doc_texts = "No relevant documents found. Using AI model only."
+            if relevant_docs and relevant_docs[0] and doc_texts:
+                source_text = ", ".join(relevant_docs)  # Get document names
+                data_source = f"**Data Source: Internal Data Reference Documents:**"
+                st.markdown(data_source)
 
-            full_prompt = f"Context:\n{doc_texts}\n\nUser Query: {user_input}"
+                for doc_path in doc_paths:
+                    st.markdown(f"🔗 [{os.path.basename(doc_path)}]({doc_path})")
+                
+                context = doc_texts  # Get document text
+            else:
+                data_source = f"**Data Source: {model_name}**"
+                st.markdown(data_source)
+                context = "No relevant documents found. Using AI model only."
+
+            full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
             client, model_id = models[model_name]
             response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
             bot_reply = response.choices[0].message.content
