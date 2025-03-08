@@ -359,7 +359,7 @@ if chat_id:
             st.markdown(data_source)
             full_prompt = f"Context:\n{context}\n\nUser Query: {user_input}"
             client, model_id = models[model_name]
-            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=256)
+            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
             bot_reply = response.choices[0].message.content
 
         chat_data["messages"].append({"role": "assistant", "content": bot_reply})
