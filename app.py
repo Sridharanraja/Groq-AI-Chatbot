@@ -159,7 +159,7 @@ models = {
     "mixtral-8x7b-32768": (client_groq, "mixtral-8x7b-32768")
 }
 
-# Load and Process Documents (adapt path to your environment)
+# Load and Process Documents
 DATA_DIR = "./sheets/DATA/"  # Update this to your folder containing docx/odt/doc files
 VECTOR_STORE_PATH = "vector_store"
 
@@ -171,7 +171,7 @@ def load_documents():
         try:
             with open(file, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-            documents.append({"source": os.path.basename(file), "content": content})
+            documents.append({"source": os.path.basename(file), "content": content, "path": file})
         except Exception as e:
             print(f"Error processing {file}: {e}")
 
@@ -198,89 +198,52 @@ else:
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
 
-    if not results:  # No relevant docs found
-        return None, None
+    if not results:
+        return None, None, None
 
     doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
     doc_texts = "\n".join([
         f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
         for res in results if res[0] and res[0].metadata
     ])
+    doc_paths = [os.path.join(DATA_DIR, doc) for doc in doc_names]
+    
+    return doc_names, doc_texts, doc_paths
 
-    return doc_names, doc_texts  # Return doc names & text
+# Main Chat UI
+st.title("🧠 Groq RAG-Enhanced Chatbot")
+chat_id = st.session_state.get("current_chat", None)
 
-# Load existing chats
-if "chats" not in st.session_state:
-    st.session_state.chats = {}  # Initialize empty dictionary for chats
+if chat_id:
+    chat_data = st.session_state.chats[chat_id]
+    model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
+    chat_data["model"] = model_name
 
-if "current_chat" not in st.session_state or st.session_state.current_chat not in st.session_state.chats:
-    chat_id = str(uuid.uuid4())
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)"}
-    st.session_state.current_chat = chat_id
+    for msg in chat_data["messages"]:
+        st.chat_message(msg["role"]).markdown(msg["content"])
 
-if "rename_mode" not in st.session_state:
-    st.session_state.rename_mode = None
+    user_input = st.chat_input("Type your message...")
+    if user_input:
+        st.chat_message("user").markdown(user_input)
+        chat_data["messages"].append({"role": "user", "content": user_input})
+        cursor.execute("UPDATE chats SET messages = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), chat_id))
+        conn.commit()
 
-if "show_options" not in st.session_state:
-    st.session_state.show_options = {}
+        with st.spinner("Thinking..."):
+            relevant_docs, doc_texts, doc_paths = retrieve_relevant_docs(user_input)
 
-def create_new_chat():
-    chat_id = str(uuid.uuid4())
-    st.session_state.chats[chat_id] = {"chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)"}
-    cursor.execute("REPLACE INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, "user", "New Chat", json.dumps([]), "Llama 3 (8B)"))
-    conn.commit()
-    st.session_state.current_chat = chat_id
+            if relevant_docs:
+                st.markdown("**Data Source: Internal Data Reference Documents**")
+                for doc_name, doc_path in zip(relevant_docs, doc_paths):
+                    st.markdown(f"[🔗 {doc_name}](file://{doc_path})")
+            else:
+                st.markdown(f"**Data Source: {model_name}**")
+                doc_texts = "No relevant documents found. Using AI model only."
 
-def rename_chat(chat_id, new_name):
-    st.session_state.chats[chat_id]["chat_name"] = new_name
-    cursor.execute("UPDATE chats SET chat_name = ? WHERE chat_id = ?", (new_name, chat_id))
-    conn.commit()
-    st.session_state.rename_mode = None
-    st.rerun()
+            full_prompt = f"Context:\n{doc_texts}\n\nUser Query: {user_input}"
+            client, model_id = models[model_name]
+            response = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500)
+            bot_reply = response.choices[0].message.content
 
-def delete_chat(chat_id):
-    del st.session_state.chats[chat_id]
-    cursor.execute("DELETE FROM chats WHERE chat_id = ?", (chat_id,))
-    conn.commit()
-    st.rerun()
-
-st.sidebar.title("💬 Chats")
-
-if st.sidebar.button("➕ New Chat"):
-    create_new_chat()
-    st.rerun()
-
-for chat_id, chat_data in list(st.session_state.chats.items()):
-    col1, col2 = st.sidebar.columns([0.85, 0.15])
-
-    if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
-        st.session_state.current_chat = chat_id
-        st.rerun()
-
-    with col2:
-        if st.button("⋮", key=f"options_{chat_id}", help="More options"):
-            st.session_state.show_options[chat_id] = not st.session_state.show_options.get(chat_id, False)
-            st.rerun()
-
-    if st.session_state.show_options.get(chat_id, False):
-        with st.sidebar.expander("Options", expanded=True):
-            if st.button("📝 Rename", key=f"rename_{chat_id}"):
-                st.session_state.rename_mode = chat_id
-                st.session_state.show_options[chat_id] = False
-                st.rerun()
-            if st.button("🗑️ Delete", key=f"delete_{chat_id}"):
-                delete_chat(chat_id)
-
-    if st.session_state.rename_mode == chat_id:
-        new_name = st.text_input("Enter new name:", value=chat_data["chat_name"], key=f"input_{chat_id}")
-        if st.button("✔️ Save", key=f"save_{chat_id}"):
-            rename_chat(chat_id, new_name)
-        if st.button("❌ Cancel", key=f"cancel_{chat_id}"):
-            st.session_state.rename_mode = None
-            st.rerun()
-
-# Add Internal Data Source File List
-st.sidebar.title("📂 Internal Data Sources")
-for file in os.listdir(DATA_DIR):
-    if file.endswith((".txt", ".pdf", ".docx")):
-        st.sidebar.markdown(f"[📄 {file}](./sheets/DATA/{file})")
+        chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+        st.chat_message("assistant").markdown(bot_reply)
