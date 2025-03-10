@@ -7,6 +7,7 @@ import uuid
 import os
 from docx import Document
 from groq import Groq
+from crewai import Agent, Task
 from langchain.document_loaders import Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
