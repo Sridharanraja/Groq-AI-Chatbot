@@ -22,4 +22,3 @@ torchaudio
 docx2txt
 langchain_community
 crewai
-pysqlite3
