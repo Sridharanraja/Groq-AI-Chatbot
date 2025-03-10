@@ -58,45 +58,63 @@ def load_documents():
             print(f"Error processing {file}: {e}")
 
     return documents
-
 # Vectorization
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
 
-def load_documents():
-    """Load existing documents."""
-    return []
-
-def process_docx(file_path):
-    """Process DOCX file and update vector store."""
-    loader = Docx2txtLoader(file_path)
-    documents = loader.load()
-    text_chunks = [(file_path, chunk) for chunk in text_splitter.split_text(documents[0].page_content)]
-    
-    if os.path.exists(VECTOR_STORE_PATH):
-        vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
-        vector_store.add_texts([chunk[1] for chunk in text_chunks], metadatas=[{"source": chunk[0]} for chunk in text_chunks])
-    else:
-        vector_store = FAISS.from_texts(
-            [chunk[1] for chunk in text_chunks], 
-            embeddings, 
-            metadatas=[{"source": chunk[0]} for chunk in text_chunks]
-        )
-    
+# Load or create vector database
+if os.path.exists(VECTOR_STORE_PATH):
+    vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
+else:
+    documents = load_documents()
+    text_chunks = [(doc["source"], chunk) for doc in documents for chunk in text_splitter.split_text(doc["content"])]
+    vector_store = FAISS.from_texts(
+        [chunk[1] for chunk in text_chunks], 
+        embeddings, 
+        metadatas=[{"source": chunk[0]} for chunk in text_chunks]
+    )
     vector_store.save_local(VECTOR_STORE_PATH)
 
-st.sidebar.header("Upload DOCX File")
-uploaded_file = st.sidebar.file_uploader("Upload a DOCX file", type=["docx"])
 
-if uploaded_file:
-    file_path = os.path.join("uploads", uploaded_file.name)
-    os.makedirs("uploads", exist_ok=True)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+# # Vectorization
+# text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
+# embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+# embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+
+# def load_documents():
+#     """Load existing documents."""
+#     return []
+
+# def process_docx(file_path):
+#     """Process DOCX file and update vector store."""
+#     loader = Docx2txtLoader(file_path)
+#     documents = loader.load()
+#     text_chunks = [(file_path, chunk) for chunk in text_splitter.split_text(documents[0].page_content)]
     
-    process_docx(file_path)
-    st.sidebar.success("Vector store updated with the new DOCX file.")
+#     if os.path.exists(VECTOR_STORE_PATH):
+#         vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
+#         vector_store.add_texts([chunk[1] for chunk in text_chunks], metadatas=[{"source": chunk[0]} for chunk in text_chunks])
+#     else:
+#         vector_store = FAISS.from_texts(
+#             [chunk[1] for chunk in text_chunks], 
+#             embeddings, 
+#             metadatas=[{"source": chunk[0]} for chunk in text_chunks]
+#         )
+    
+#     vector_store.save_local(VECTOR_STORE_PATH)
+
+# st.sidebar.header("Upload DOCX File")
+# uploaded_file = st.sidebar.file_uploader("Upload a DOCX file", type=["docx"])
+
+# if uploaded_file:
+#     file_path = os.path.join("uploads", uploaded_file.name)
+#     os.makedirs("uploads", exist_ok=True)
+#     with open(file_path, "wb") as f:
+#         f.write(uploaded_file.getbuffer())
+    
+#     process_docx(file_path)
+#     st.sidebar.success("Vector store updated with the new DOCX file.")
 
 # # Load or create vector database
 # if os.path.exists(VECTOR_STORE_PATH):
