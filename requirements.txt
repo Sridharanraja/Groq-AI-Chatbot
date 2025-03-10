@@ -11,7 +11,6 @@ tiktoken
 unstructured[doc]
 sentence-transformers
 langchain-community
-langchain
 langchain_openai
 langchain_experimental
 langchain_chroma
@@ -21,8 +20,4 @@ torch
 torchvision
 torchaudio
 docx2txt
-crewai
-crewai_tools
-langchain
 langchain_community
-langchain_openai
