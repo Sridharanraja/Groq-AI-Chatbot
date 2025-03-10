@@ -11,6 +11,8 @@ from langchain.document_loaders import Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
+from crewai import Agent
+from crewai import Task, Crew
 
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot", page_icon="🧠")
@@ -109,6 +111,53 @@ else:
         metadatas=[{"source": chunk[0]} for chunk in text_chunks]
     )
     vector_store.save_local(VECTOR_STORE_PATH)
+
+# Define AI Agents
+finance_agent = Agent(role='Finance Analyst', goal='Provide financial insights and reports', backstory='Expert in financial data analysis', verbose=True)
+marketing_agent = Agent(role='Marketing Expert', goal='Analyze market trends and provide strategies', backstory='Specialist in marketing and business growth', verbose=True)
+strategy_agent = Agent(role='Business Strategist', goal='Develop business strategies for growth', backstory='Expert in business planning and execution', verbose=True)
+moderator_agent = Agent(role='Moderator', goal='Ensure smooth discussions and maintain compliance', backstory='Maintains a fair and structured conversation', verbose=True)
+
+# Define Tasks
+finance_task = Task(description='Analyze financial trends and summarize.', expected_output='Financial analysis summary.', agent=finance_agent)
+marketing_task = Task(description='Provide latest marketing trends.', expected_output='Marketing insights.', agent=marketing_agent)
+strategy_task = Task(description='Suggest business strategies.', expected_output='Strategy recommendations.', agent=strategy_agent)
+moderator_task = Task(description='Moderate the discussion.', expected_output='Ensuring fairness.', agent=moderator_agent)
+
+# UI Layout
+st.title("AI Agents Chat Interface")
+col1, col2 = st.columns(2)
+col3, col4 = st.columns(2)
+
+with col1:
+    st.subheader("Finance Chat")
+    finance_query = st.text_input("Ask Finance Agent")
+    if finance_query:
+        finance_response = finance_agent.execute(finance_task)
+        st.write(finance_response)
+
+with col2:
+    st.subheader("Marketing Chat")
+    marketing_query = st.text_input("Ask Marketing Agent")
+    if marketing_query:
+        marketing_response = marketing_agent.execute(marketing_task)
+        st.write(marketing_response)
+
+with col3:
+    st.subheader("Strategy Chat")
+    strategy_query = st.text_input("Ask Strategy Agent")
+    if strategy_query:
+        strategy_response = strategy_agent.execute(strategy_task)
+        st.write(strategy_response)
+
+with col4:
+    st.subheader("Moderator Chat")
+    moderator_query = st.text_input("Ask Moderator Agent")
+    if moderator_query:
+        moderator_response = moderator_agent.execute(moderator_task)
+        st.write(moderator_response)
+
+st.success("Upload a DOCX file to update the vector store and start chatting with AI Agents!")
 
 # # Load or create vector database
 # if os.path.exists(VECTOR_STORE_PATH):
