@@ -79,7 +79,7 @@ else:
 
 # Vectorization
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=50)
-embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embedding_model = "BAAI/bge-m3" #"sentence-transformers/all-MiniLM-L6-v2"
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
 
 def load_documents():
