@@ -11,8 +11,7 @@ from langchain.document_loaders import Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
-from crewai import Agent
-from crewai import Task, Crew
+from crewai import Agent, Task
 
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot", page_icon="🧠")
