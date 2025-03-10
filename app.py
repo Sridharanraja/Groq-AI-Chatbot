@@ -258,7 +258,3 @@ if chat_id:
 
         chat_data["messages"].append({"role": "assistant", "content": bot_reply})
         st.chat_message("assistant").markdown(bot_reply)
-
-
-        chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-        st.chat_message("assistant").markdown(bot_reply)
