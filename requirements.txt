@@ -20,3 +20,4 @@ unstructured
 torch
 torchvision
 torchaudio
+docx2txt
