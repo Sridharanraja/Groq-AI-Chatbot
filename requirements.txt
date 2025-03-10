@@ -21,3 +21,8 @@ torch
 torchvision
 torchaudio
 docx2txt
+crewai
+crewai_tools
+langchain
+langchain_community
+langchain_openai
