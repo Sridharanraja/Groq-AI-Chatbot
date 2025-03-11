@@ -1,4 +1,4 @@
-API='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'
+API='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'#'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'
 
 __import__('pysqlite3')
 import sys
@@ -312,8 +312,8 @@ if "messages" not in chat_data:
     chat_data["messages"] = []
 
 # # Display messages
-for msg in chat_data["messages"]:
-    st.chat_message(msg["role"]).markdown(msg["content"])
+# for msg in chat_data["messages"]:
+#     st.chat_message(msg["role"]).markdown(msg["content"])
 
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
