@@ -16,7 +16,7 @@ langchain_experimental
 langchain_chroma
 langchainhub
 unstructured
-torch
+torch==2.1.0
 torchvision
 torchaudio
 docx2txt
