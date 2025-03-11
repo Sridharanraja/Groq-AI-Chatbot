@@ -345,8 +345,13 @@ if "messages" not in chat_data:
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
 # Model selection per agent
-model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
-chat_data["model"] = model_name
+# model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
+# chat_data["model"] = model_name
+
+default_model = chat_data.get("model", "Llama 3 (8B)")  # Default to Llama 3 (8B) if 'model' is missing
+model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(default_model))
+chat_data["model"] = model_name  # Ensure model selection is saved
+
 
 # Display previous messages for the selected agent
 for msg in chat_data["messages"]:
