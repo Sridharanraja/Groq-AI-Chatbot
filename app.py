@@ -405,7 +405,7 @@ if user_input:
     conn.commit()
 
     with st.spinner("Thinking..."):
-            relevant_docs = retrieve_relevant_docs(user_input)
+            # relevant_docs = retrieve_relevant_docs(user_input)
 
             # if relevant_docs and relevant_docs[0] and relevant_docs[1]:
             #     # Convert filenames into clickable download links #{DATA_DIR}
@@ -418,24 +418,24 @@ if user_input:
             # st.markdown(data_source, unsafe_allow_html=True)
 
         
-            relevant_docs = retrieve_relevant_docs(user_input)
+            # relevant_docs = retrieve_relevant_docs(user_input)
 
-            if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
-                unique_filenames = relevant_docs[0]  
+            # if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
+            #     unique_filenames = relevant_docs[0]  
             
-                # ✅ Show only unique DOCX files for download
-                source_text = "<br>".join([
-                    f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
-                    for doc in unique_filenames if doc.endswith(".docx")
-                ])
+            #     # ✅ Show only unique DOCX files for download
+            #     source_text = "<br>".join([
+            #         f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
+            #         for doc in unique_filenames if doc.endswith(".docx")
+            #     ])
                 
-                data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
-                context = relevant_docs[1]  # Get document text
-            else:
-                data_source = f"**Data Source: {model_name}**"
-                context = "No relevant documents found. Using AI model only."
+            #     data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
+            #     context = relevant_docs[1]  # Get document text
+            # else:
+            #     data_source = f"**Data Source: {model_name}**"
+            #     context = "No relevant documents found. Using AI model only."
             
-            st.markdown(data_source, unsafe_allow_html=True)
+            # st.markdown(data_source, unsafe_allow_html=True)
 
 
             full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
