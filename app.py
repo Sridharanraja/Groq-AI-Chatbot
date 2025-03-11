@@ -118,18 +118,20 @@ else:
 
 def retrieve_relevant_docs(query):
     if vector_store is None:
-        return "No relevant documents found. FAISS vector store is not initialized."
+        return [], "No relevant documents found. FAISS vector store is not initialized."
 
     try:
         results = vector_store.similarity_search_with_score(query, k=3)
         if results:
-            return "\n".join([
-                f"**Source: {res[0].metadata.get('source', 'Unknown')}**\n{res[0].page_content[:1000]}" for res in results
+            filenames = [res[0].metadata.get("source", "Unknown") for res in results]
+            doc_texts = "\n".join([
+                f"**Source: {filenames[i]}**\n{results[i][0].page_content[:1000]}" for i in range(len(results))
             ])
+            return filenames, doc_texts
     except Exception as e:
         st.error(f"Error retrieving documents: {e}")
-    
-    return "No relevant documents found."
+
+    return [], "No relevant documents found."
 
 
 # def retrieve_relevant_docs(query):
@@ -417,14 +419,17 @@ if user_input:
             relevant_docs = retrieve_relevant_docs(user_input)
     
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                download_links = generate_download_links(relevant_docs[0])  # Generate clickable auto-download links
-                data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{download_links}"
+                # Convert filenames into clickable download links
+                source_text = "<br>".join([
+                    f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
+                    for doc in relevant_docs[0] if doc.endswith(".docx")
+                ])
+                data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
                 context = relevant_docs[1]  # Get document text
             else:
                 data_source = f"**Data Source: {model_name}**"
                 context = "No relevant documents found. Using AI model only."
-
-            # Display formatted markdown with auto-download links
+            
             st.markdown(data_source, unsafe_allow_html=True)
 
             full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
