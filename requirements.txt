@@ -24,6 +24,6 @@ langchain_community
 crewai
 pysqlite3-binary
 speechrecognition
-PyAudio
+pyaudio
 espeakng
 gtts
