@@ -486,31 +486,15 @@ if os.path.exists(VECTOR_STORE_PATH):
 else:
     vector_store = None
 
-
 def retrieve_relevant_docs(query):
-    results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
-
-    if not results:  # No relevant docs found
-        return None, None
-
-    doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
-    doc_texts = "\n".join([
-        f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
-        for res in results if res[0] and res[0].metadata
-    ])
-
-    return doc_names, doc_texts  # Return doc names & text
-
-
-# def retrieve_relevant_docs(query):
-#     if vector_store:
-#         results = vector_store.similarity_search_with_score(query, k=3)
-#         if results:
-#             doc_texts = "\n".join([
-#                 f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}" for res in results
-#             ])
-#             return doc_texts
-#     return "No relevant documents found. Using AI model only."
+    if vector_store:
+        results = vector_store.similarity_search_with_score(query, k=3)
+        if results:
+            doc_texts = "\n".join([
+                f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}" for res in results
+            ])
+            return doc_texts
+    return "No relevant documents found. Using AI model only."
 
 # CrewAI Agents
 # finance_agent = Agent(role="Finance Analyst", goal="Provide financial insights using relevant financial documents.")
@@ -571,138 +555,26 @@ tasks = {
 
 # Sidebar - Agent Selection
 st.sidebar.header("Select AI Agent")
-# selected_agent_name = st.sidebar.radio("Choose an Agent:", list(agents.keys()))
-selected_agent_name = st.sidebar.radio(
-    "Choose an Agent:", list(agents.keys()), key="agent_selector"
-)
-
+selected_agent_name = st.sidebar.radio("Choose an Agent:", list(agents.keys()))
 st.session_state.selected_agent = selected_agent_name
 
-st.sidebar.header("Upload DOCX File for RAG")
-uploaded_file = st.sidebar.file_uploader("Upload a DOCX file", type=["docx"])
-
-if uploaded_file:
-    file_path = os.path.join("uploads", uploaded_file.name)
-    os.makedirs("uploads", exist_ok=True)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    process_docx(file_path)
-    st.sidebar.success("Vector store updated with the new DOCX file.")
-
-# Sidebar - Chat session management for all agents
-st.sidebar.title("💬 Chats")
-
-# Ensure session state variables exist
-if "chats" not in st.session_state:
-    st.session_state.chats = {}  # Stores all chat sessions
-if "current_chat" not in st.session_state:
-    st.session_state.current_chat = None
-if "rename_mode" not in st.session_state:
-    st.session_state.rename_mode = None
-if "show_options" not in st.session_state:
-    st.session_state.show_options = {}
-
-# Ensure each agent has its own chat history
-if not st.session_state.chats[selected_agent_name]:  # If no chat exists for this agent
-    chat_id = str(uuid.uuid4())
-    st.session_state.chats[selected_agent_name][chat_id] = {
-        "chat_name": f"Chat with {selected_agent_name}",
-        "messages": [],
-        "model": "Llama 3 (8B)",
-        "agent": selected_agent_name,
-    }
-    st.session_state.current_chat = chat_id
-
-# Sidebar - Manage Chat Sessions for Selected Agent
-st.sidebar.subheader(f"Chats for {selected_agent_name}")
-
-# Button to create a new chat for the selected agent
-if st.sidebar.button("➕ New Chat", key=f"new_chat_{selected_agent_name}"):
-    new_chat_id = str(uuid.uuid4())
-    st.session_state.chats[selected_agent_name][new_chat_id] = {
-        "chat_name": f"Chat with {selected_agent_name} ({len(st.session_state.chats[selected_agent_name]) + 1})",
-        "messages": [],
-        "model": "Llama 3 (8B)",
-        "agent": selected_agent_name,
-    }
-    st.session_state.current_chat = new_chat_id
-    st.rerun()
-
-# Ensure correct looping over chat sessions
-for chat_id, chat_data in st.session_state.chats[selected_agent_name].items():
-    if not isinstance(chat_data, dict):  # Fix any incorrect data types
-        continue
-
-    col1, col2 = st.sidebar.columns([0.85, 0.15])
-
-    # Switch chat session
-    if col1.button(chat_data["chat_name"], key=f"chat_{chat_id}"):
-        st.session_state.current_chat = chat_id
-        st.rerun()
-
-    # More options button
-    with col2:
-        if st.button("⋮", key=f"options_{chat_id}", help="More options"):
-            st.session_state.show_options[chat_id] = not st.session_state.show_options.get(chat_id, False)
-            st.rerun()
-
-    # Show chat options (rename, delete)
-    if st.session_state.show_options.get(chat_id, False):
-        with st.sidebar.expander("Options", expanded=True):
-            if st.button("📝 Rename", key=f"rename_{chat_id}"):
-                st.session_state.rename_mode = chat_id
-                st.session_state.show_options[chat_id] = False
-                st.rerun()
-            if st.button("🗑️ Delete", key=f"delete_{chat_id}"):
-                del st.session_state.chats[selected_agent_name][chat_id]
-                st.session_state.current_chat = None
-                st.rerun()
-
-    # Rename chat functionality
-    if st.session_state.rename_mode == chat_id:
-        new_name = st.text_input("Enter new name:", value=chat_data["chat_name"], key=f"input_{chat_id}")
-        if st.button("✔️ Save", key=f"save_{chat_id}"):
-            st.session_state.chats[selected_agent_name][chat_id]["chat_name"] = new_name
-            st.session_state.rename_mode = None
-            st.rerun()
-        if st.button("❌ Cancel", key=f"cancel_{chat_id}"):
-            st.session_state.rename_mode = None
-            st.rerun()
-
-# Set default chat if none is selected
-if st.session_state.current_chat is None and st.session_state.chats[selected_agent_name]:
-    st.session_state.current_chat = list(st.session_state.chats[selected_agent_name].keys())[0]
-
 # Main Chat UI
-# Ensure session state stores chat history per agent
 if "chats" not in st.session_state:
     st.session_state.chats = {}
 
-# If switching agents, maintain separate chat history
-# selected_agent_name = st.sidebar.radio("Choose an Agent:", list(agents.keys()))
-
-
-if selected_agent_name not in st.session_state.chats:
-    chat_id = str(uuid.uuid4())  # Unique chat ID per agent
-    st.session_state.chats[selected_agent_name] = {
-        "chat_id": chat_id,
-        "chat_name": f"Chat with {selected_agent_name}",
-        "messages": [],
-        "model": "Llama 3 (8B)"
+if "current_chat" not in st.session_state:
+    chat_id = str(uuid.uuid4())
+    st.session_state.chats[chat_id] = {
+        "chat_name": "New Chat", "messages": [], "model": "Llama 3 (8B)", "agent": selected_agent_name
     }
+    st.session_state.current_chat = chat_id
 
-# Load chat history for selected agent
-chat_data = st.session_state.chats[selected_agent_name]
-chat_id = chat_data["chat_id"]
-
-st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
-
-# Model selection per agent
+chat_id = st.session_state.current_chat
+chat_data = st.session_state.chats[chat_id]
+chat_data["agent"] = selected_agent_name
 model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
 chat_data["model"] = model_name
 
-# Display previous messages for the selected agent
 for msg in chat_data["messages"]:
     st.chat_message(msg["role"]).markdown(msg["content"])
 
@@ -710,35 +582,18 @@ user_input = st.chat_input("Type your message...")
 if user_input:
     st.chat_message("user").markdown(user_input)
     chat_data["messages"].append({"role": "user", "content": user_input})
-
-    # Update the database with chat history per agent
-    cursor.execute("""
-        INSERT INTO chats (chat_id, user_id, chat_name, messages, model, agent)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(chat_id) DO UPDATE SET messages = ?, agent = ? WHERE chat_id = ?
-    """, (chat_id, "default_user", chat_data["chat_name"], json.dumps(chat_data["messages"]), model_name, selected_agent_name,
-          json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
+    cursor.execute("UPDATE chats SET messages = ?, agent = ? WHERE chat_id = ?", (json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
     conn.commit()
-
+    
     with st.spinner("Thinking..."):
-            relevant_docs = retrieve_relevant_docs(user_input)
-
-            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                # Convert filenames into clickable download links
-                source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-                data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
-                context = relevant_docs[1]  # Get document text
-            else:
-                data_source = f"**Data Source: {model_name}**"
-                context = "No relevant documents found. Using AI model only."
-            st.markdown(data_source, unsafe_allow_html=True)
-            full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
-
-            client, model_id = models[model_name]
-            response = client.chat.completions.create(
-                model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
-            )
-            bot_reply = response.choices[0].message.content
-
+        context = retrieve_relevant_docs(user_input)
+        full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
+        
+        client, model_id = models[model_name]
+        response = client.chat.completions.create(
+            model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
+        )
+        bot_reply = response.choices[0].message.content
+    
     chat_data["messages"].append({"role": "assistant", "content": bot_reply})
     st.chat_message("assistant").markdown(bot_reply)
