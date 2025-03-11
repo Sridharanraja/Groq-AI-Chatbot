@@ -418,9 +418,11 @@ if user_input:
             # st.markdown(data_source, unsafe_allow_html=True)
             relevant_docs = retrieve_relevant_docs(user_input)
     
-            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                unique_filenames = list(set(relevant_docs[0]))  # ✅ Ensure Unique Filenames
+           
+            if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
+                unique_filenames = relevant_docs[0]  
             
+                # ✅ Show only unique DOCX files for download
                 source_text = "<br>".join([
                     f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
                     for doc in unique_filenames if doc.endswith(".docx")
