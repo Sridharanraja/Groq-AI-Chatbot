@@ -196,8 +196,12 @@ if "rename_mode" not in st.session_state:
 if "show_options" not in st.session_state:
     st.session_state.show_options = {}
 
-# Ensure each agent has its own chat history
-if not st.session_state.chats[selected_agent_name]:  # If no chat exists for this agent
+# Ensure selected agent has a dictionary in chats
+if selected_agent_name not in st.session_state.chats:
+    st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary
+
+# If no chat exists for this agent, create a new chat session
+if not st.session_state.chats[selected_agent_name]:  
     chat_id = str(uuid.uuid4())
     st.session_state.chats[selected_agent_name][chat_id] = {
         "chat_name": f"Chat with {selected_agent_name}",
