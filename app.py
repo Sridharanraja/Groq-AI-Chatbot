@@ -316,9 +316,8 @@ if "chats" not in st.session_state:
 if selected_agent_name not in st.session_state.chats:
     st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary
 
-# Create a new chat session if no chat exists for this agent
-if not st.session_state.chats[selected_agent_name]:  
-    chat_id = str(uuid.uuid4())
+if "current_chat" not in st.session_state or st.session_state.current_chat not in st.session_state.chats[selected_agent_name]:
+    chat_id = str(uuid.uuid4())  # Generate a new chat ID
     st.session_state.chats[selected_agent_name][chat_id] = {
         "chat_name": f"Chat with {selected_agent_name}",
         "messages": [],
@@ -326,10 +325,24 @@ if not st.session_state.chats[selected_agent_name]:
         "agent": selected_agent_name,
     }
     st.session_state.current_chat = chat_id
-else:
-    # Retrieve an existing chat_id or default to the first one
-    chat_id = st.session_state.current_chat or list(st.session_state.chats[selected_agent_name].keys())[0]
-    st.session_state.current_chat = chat_id  # Ensure it's stored in session state
+
+# Now safely retrieve chat data
+chat_data = st.session_state.chats[selected_agent_name][st.session_state.current_chat]
+
+# # Create a new chat session if no chat exists for this agent
+# if not st.session_state.chats[selected_agent_name]:  
+#     chat_id = str(uuid.uuid4())
+#     st.session_state.chats[selected_agent_name][chat_id] = {
+#         "chat_name": f"Chat with {selected_agent_name}",
+#         "messages": [],
+#         "model": "Llama 3 (8B)",
+#         "agent": selected_agent_name,
+#     }
+#     st.session_state.current_chat = chat_id
+# else:
+#     # Retrieve an existing chat_id or default to the first one
+#     chat_id = st.session_state.current_chat or list(st.session_state.chats[selected_agent_name].keys())[0]
+#     st.session_state.current_chat = chat_id  # Ensure it's stored in session state
 
 # Get the chat data safely
 chat_data = st.session_state.chats[selected_agent_name].get(chat_id, {})
