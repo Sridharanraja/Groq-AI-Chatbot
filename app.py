@@ -273,7 +273,8 @@ if st.session_state.current_chat is None and st.session_state.chats[selected_age
 st.sidebar.header("Upload DOCX File for RAG")
 uploaded_file = st.sidebar.file_uploader("Upload a DOCX file", type=["docx"])
 
-if uploaded_file:
+if uploaded_file is not None:
+# if uploaded_file:
     file_path = os.path.join("uploads", uploaded_file.name)
     os.makedirs("uploads", exist_ok=True)
     with open(file_path, "wb") as f:
