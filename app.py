@@ -435,7 +435,7 @@ if st.button("🎤 Speak"):
     user_input = speech_to_text()
     st.chat_message("user").markdown(user_input)
         with st.spinner("Thinking..."):
-               relevant_docs = retrieve_relevant_docs(user_input)
+            relevant_docs = retrieve_relevant_docs(user_input)
             
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
                 # Convert filenames into clickable download links
