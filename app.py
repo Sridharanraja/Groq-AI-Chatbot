@@ -301,7 +301,7 @@ if "chats" not in st.session_state:
 if selected_agent_name not in st.session_state.chats:
     st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary
 
-# If no chat exists for this agent, create a new chat session
+# Create a new chat session if no chat exists for this agent
 if not st.session_state.chats[selected_agent_name]:  
     chat_id = str(uuid.uuid4())
     st.session_state.chats[selected_agent_name][chat_id] = {
@@ -312,16 +312,20 @@ if not st.session_state.chats[selected_agent_name]:
     }
     st.session_state.current_chat = chat_id
 else:
-    # If chats exist, get the latest chat_id (or pick the first one)
-    chat_id = list(st.session_state.chats[selected_agent_name].keys())[0]
-    st.session_state.current_chat = chat_id
+    # Retrieve an existing chat_id or default to the first one
+    chat_id = st.session_state.current_chat or list(st.session_state.chats[selected_agent_name].keys())[0]
+    st.session_state.current_chat = chat_id  # Ensure it's stored in session state
 
-# Now correctly reference chat_data
-chat_data = st.session_state.chats[selected_agent_name][chat_id]
+# Get the chat data safely
+chat_data = st.session_state.chats[selected_agent_name].get(chat_id, {})
 
-# Load chat history for selected agent
-# chat_data = st.session_state.chats[selected_agent_name]
-chat_id = chat_data["chat_id"]
+# Ensure chat_data exists before accessing messages
+if "messages" not in chat_data:
+    chat_data["messages"] = []
+
+# Display messages
+for msg in chat_data["messages"]:
+    st.chat_message(msg["role"]).markdown(msg["content"])
 
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
