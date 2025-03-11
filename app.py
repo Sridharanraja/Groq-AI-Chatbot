@@ -297,10 +297,12 @@ if "chats" not in st.session_state:
 #         "model": "Llama 3 (8B)"
 #     }
 
+# Ensure selected agent has a dictionary in chats
 if selected_agent_name not in st.session_state.chats:
-    st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary for the agent
+    st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary
 
-if not st.session_state.chats[selected_agent_name]:  # If no chat exists for this agent
+# If no chat exists for this agent, create a new chat session
+if not st.session_state.chats[selected_agent_name]:  
     chat_id = str(uuid.uuid4())
     st.session_state.chats[selected_agent_name][chat_id] = {
         "chat_name": f"Chat with {selected_agent_name}",
@@ -309,9 +311,16 @@ if not st.session_state.chats[selected_agent_name]:  # If no chat exists for thi
         "agent": selected_agent_name,
     }
     st.session_state.current_chat = chat_id
+else:
+    # If chats exist, get the latest chat_id (or pick the first one)
+    chat_id = list(st.session_state.chats[selected_agent_name].keys())[0]
+    st.session_state.current_chat = chat_id
+
+# Now correctly reference chat_data
+chat_data = st.session_state.chats[selected_agent_name][chat_id]
 
 # Load chat history for selected agent
-chat_data = st.session_state.chats[selected_agent_name]
+# chat_data = st.session_state.chats[selected_agent_name]
 chat_id = chat_data["chat_id"]
 
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
