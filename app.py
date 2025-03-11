@@ -284,14 +284,27 @@ if uploaded_file:
 if "chats" not in st.session_state:
     st.session_state.chats = {}
 
+# if selected_agent_name not in st.session_state.chats:
+#     chat_id = str(uuid.uuid4())  # Unique chat ID per agent
+#     st.session_state.chats[selected_agent_name] = {
+#         "chat_id": chat_id,
+#         "chat_name": f"Chat with {selected_agent_name}",
+#         "messages": [],
+#         "model": "Llama 3 (8B)"
+#     }
+
 if selected_agent_name not in st.session_state.chats:
-    chat_id = str(uuid.uuid4())  # Unique chat ID per agent
-    st.session_state.chats[selected_agent_name] = {
-        "chat_id": chat_id,
+    st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary for the agent
+
+if not st.session_state.chats[selected_agent_name]:  # If no chat exists for this agent
+    chat_id = str(uuid.uuid4())
+    st.session_state.chats[selected_agent_name][chat_id] = {
         "chat_name": f"Chat with {selected_agent_name}",
         "messages": [],
-        "model": "Llama 3 (8B)"
+        "model": "Llama 3 (8B)",
+        "agent": selected_agent_name,
     }
+    st.session_state.current_chat = chat_id
 
 # Load chat history for selected agent
 chat_data = st.session_state.chats[selected_agent_name]
