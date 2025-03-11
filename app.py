@@ -136,7 +136,7 @@ else:
 
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
-
+ 
     if not results:  # No relevant docs found
         return None, None
 
