@@ -17,7 +17,8 @@ from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from crewai import Agent, Task
 import speech_recognition as sr
-import pyttsx3
+# import pyttsx3
+from gtts import gTTS
 
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot with CrewAI", page_icon="\U0001F9E0")
@@ -138,26 +139,30 @@ else:
 engine = pyttsx3.init()
 engine.setProperty("rate", 150)  # Adjust voice speed
 
-# Function: Speech to Text
+def text_to_speech(text):
+    """Convert text to speech and play the audio in Streamlit."""
+    tts = gTTS(text=text, lang="en")
+    audio_file = "response.mp3"
+    tts.save(audio_file)
+    st.audio(audio_file, format="audio/mp3")
+    os.remove(audio_file)  # Clean up after playing
+
 def speech_to_text():
+    """Capture voice input and convert it to text."""
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         st.info("🎤 Speak now...")
         recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-
-    try:
-        return recognizer.recognize_google(audio)  # Convert speech to text
-    except sr.UnknownValueError:
-        return "Sorry, I could not understand your speech."
-    except sr.RequestError:
-        return "Could not request results, please check your internet."
-
-# Function: Text to Speech
-def text_to_speech(text):
-    engine.say(text)
-    engine.runAndWait()
-
+        try:
+            audio = recognizer.listen(source, timeout=5)
+            text = recognizer.recognize_google(audio)
+            return text
+        except sr.UnknownValueError:
+            return "Sorry, I couldn't understand. Please try again."
+        except sr.RequestError:
+            return "Speech recognition service is unavailable."
+        except Exception as e:
+            return f"Error: {str(e)}"
 
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
@@ -460,8 +465,8 @@ if st.button("🎤 Speak"):
     text_to_speech(bot_reply)
 
 # 🔊 Listen Again Button
-if st.button("🔊 Listen Again") and st.session_state.messages:
-    last_response = st.session_state.messages[-1]["content"]
+if st.button("🔊 Listen Again") and chat_data["messages"]:
+    last_response = chat_data["messages"][-1]["content"]
     text_to_speech(last_response)
 
 
