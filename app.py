@@ -116,20 +116,35 @@ if os.path.exists(VECTOR_STORE_PATH):
 else:
     vector_store = None
 
-
 def retrieve_relevant_docs(query):
-    results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
+    if vector_store is None:
+        return "No relevant documents found. FAISS vector store is not initialized."
 
-    if not results:  # No relevant docs found
-        return None, None
+    try:
+        results = vector_store.similarity_search_with_score(query, k=3)
+        if results:
+            return "\n".join([
+                f"**Source: {res[0].metadata.get('source', 'Unknown')}**\n{res[0].page_content[:1000]}" for res in results
+            ])
+    except Exception as e:
+        st.error(f"Error retrieving documents: {e}")
+    
+    return "No relevant documents found."
 
-    doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
-    doc_texts = "\n".join([
-        f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
-        for res in results if res[0] and res[0].metadata
-    ])
 
-    return doc_names, doc_texts  # Return doc names & text
+# def retrieve_relevant_docs(query):
+#     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
+
+#     if not results:  # No relevant docs found
+#         return None, None
+
+#     doc_names = list(set(res[0].metadata["source"] for res in results if res[0] and res[0].metadata))
+#     doc_texts = "\n".join([
+#         f"**Source: {res[0].metadata['source']}**\n{res[0].page_content[:1000]}"  # Truncate text
+#         for res in results if res[0] and res[0].metadata
+#     ])
+
+#     return doc_names, doc_texts  # Return doc names & text
 
 finance_agent = Agent(
     role="Finance Analyst",
