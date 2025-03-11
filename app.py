@@ -361,5 +361,11 @@ if user_input:
         )
         bot_reply = response.choices[0].message.content
  
-chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-st.chat_message("assistant").markdown(bot_reply)
+# chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+# st.chat_message("assistant").markdown(bot_reply)
+
+try:
+    chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+    st.chat_message("assistant").markdown(bot_reply)
+except NameError:
+    pass  # Ignore the error silently
