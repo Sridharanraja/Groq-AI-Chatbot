@@ -25,3 +25,4 @@ crewai
 pysqlite3-binary
 speechrecognition
 pyttsx3
+espeakng
