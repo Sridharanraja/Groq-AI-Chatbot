@@ -355,6 +355,24 @@ if "messages" not in chat_data:
 # for msg in chat_data["messages"]:
 #     st.chat_message(msg["role"]).markdown(msg["content"])
 
+def get_base64_encoded_file(file_path):
+    """Reads and encodes the DOCX file to Base64 for Streamlit download."""
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+    return base64.b64encode(file_data).decode()
+
+def generate_download_links(doc_files):
+    """Creates auto-download links for only DOCX files."""
+    links = []
+    for doc in doc_files:
+        if doc.endswith(".docx"):  # Only allow DOCX files
+            file_path = os.path.join(DATA_DIR, doc)
+            if os.path.exists(file_path):
+                encoded_file = get_base64_encoded_file(file_path)
+                href = f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{encoded_file}" download="{doc}" style="text-decoration: none; color: #00A8E8; font-weight: bold;">📄 {doc}</a>'
+                links.append(href)
+    return "<br>".join(links)
+
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
 # Model selection per agent
@@ -387,15 +405,28 @@ if user_input:
     with st.spinner("Thinking..."):
             relevant_docs = retrieve_relevant_docs(user_input)
 
+            # if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+            #     # Convert filenames into clickable download links
+            #     source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+            #     data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{source_text}"
+            #     context = relevant_docs[1]  # Get document text
+            # else:
+            #     data_source = f"**Data Source: {model_name}**"
+            #     context = "No relevant documents found. Using AI model only."
+            # st.markdown(data_source, unsafe_allow_html=True)
+            relevant_docs = retrieve_relevant_docs(user_input)
+    
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                # Convert filenames into clickable download links
-                source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-                data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{source_text}"
+                download_links = generate_download_links(relevant_docs[0])  # Generate clickable auto-download links
+                data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{download_links}"
                 context = relevant_docs[1]  # Get document text
             else:
                 data_source = f"**Data Source: {model_name}**"
                 context = "No relevant documents found. Using AI model only."
+
+            # Display formatted markdown with auto-download links
             st.markdown(data_source, unsafe_allow_html=True)
+
             full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
 
             client, model_id = models[model_name]
