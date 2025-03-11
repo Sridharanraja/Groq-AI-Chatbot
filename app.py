@@ -436,8 +436,17 @@ if user_input:
             #     context = "No relevant documents found. Using AI model only."
             
             # st.markdown(data_source, unsafe_allow_html=True)
-
-
+            relevant_docs = retrieve_relevant_docs(user_input)
+            
+            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+                # Convert filenames into clickable download links
+                source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+                data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
+                context = relevant_docs[1]  # Get document text
+            else:
+                data_source = f"**Data Source: {model_name}**"
+                context = "No relevant documents found. Using AI model only."
+            st.markdown(data_source, unsafe_allow_html=True)
             full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
 
             client, model_id = models[model_name]
@@ -448,3 +457,14 @@ if user_input:
 
     chat_data["messages"].append({"role": "assistant", "content": bot_reply})
     st.chat_message("assistant").markdown(bot_reply)
+
+    #         full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
+
+    #         client, model_id = models[model_name]
+    #         response = client.chat.completions.create(
+    #             model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
+    #         )
+    #         bot_reply = response.choices[0].message.content
+
+    # chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+    # st.chat_message("assistant").markdown(bot_reply)
