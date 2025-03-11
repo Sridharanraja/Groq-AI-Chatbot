@@ -135,10 +135,6 @@ else:
 
 #     return [], "No relevant documents found."
 
-# Initialize Text-to-Speech Engine
-engine = pyttsx3.init()
-engine.setProperty("rate", 150)  # Adjust voice speed
-
 def text_to_speech(text):
     """Convert text to speech and play the audio in Streamlit."""
     tts = gTTS(text=text, lang="en")
