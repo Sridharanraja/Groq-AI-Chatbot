@@ -1,5 +1,5 @@
 API='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'
- 
+
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
@@ -16,8 +16,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from crewai import Agent, Task
- 
- 
+
+
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot with CrewAI", page_icon="\U0001F9E0")
 
@@ -136,7 +136,7 @@ else:
 
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
- 
+
     if not results:  # No relevant docs found
         return None, None
 
@@ -401,10 +401,41 @@ if user_input:
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(chat_id) DO UPDATE SET messages = ?, agent = ? WHERE chat_id = ?
     """, (chat_id, "default_user", chat_data["chat_name"], json.dumps(chat_data["messages"]), model_name, selected_agent_name,
-          json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
+        json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
     conn.commit()
 
-    with st.spinner("Thinking..."): 
+    with st.spinner("Thinking..."):
+            # relevant_docs = retrieve_relevant_docs(user_input)
+
+            # if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+            #     # Convert filenames into clickable download links #{DATA_DIR}
+            #     source_text = "<br>".join([f'<a href="{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+            #     data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{source_text}"
+            #     context = relevant_docs[1]  # Get document text
+            # else:
+            #     data_source = f"**Data Source: {model_name}**"
+            #     context = "No relevant documents found. Using AI model only."
+            # st.markdown(data_source, unsafe_allow_html=True)
+
+
+            # relevant_docs = retrieve_relevant_docs(user_input)
+
+            # if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
+            #     unique_filenames = relevant_docs[0]  
+
+            #     # ✅ Show only unique DOCX files for download
+            #     source_text = "<br>".join([
+            #         f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
+            #         for doc in unique_filenames if doc.endswith(".docx")
+            #     ])
+
+            #     data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
+            #     context = relevant_docs[1]  # Get document text
+            # else:
+            #     data_source = f"**Data Source: {model_name}**"
+            #     context = "No relevant documents found. Using AI model only."
+
+            # st.markdown(data_source, unsafe_allow_html=True)
             relevant_docs = retrieve_relevant_docs(user_input)
 
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
@@ -427,3 +458,14 @@ if user_input:
 
     chat_data["messages"].append({"role": "assistant", "content": bot_reply})
     st.chat_message("assistant").markdown(bot_reply)
+
+    #         full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
+
+    #         client, model_id = models[model_name]
+    #         response = client.chat.completions.create(
+    #             model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
+    #         )
+    #         bot_reply = response.choices[0].message.content
+
+    # chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+    # st.chat_message("assistant").markdown(bot_reply)
