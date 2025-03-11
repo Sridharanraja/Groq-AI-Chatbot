@@ -338,9 +338,9 @@ chat_data = st.session_state.chats[selected_agent_name].get(chat_id, {})
 if "messages" not in chat_data:
     chat_data["messages"] = []
 
-# Display messages
-for msg in chat_data["messages"]:
-    st.chat_message(msg["role"]).markdown(msg["content"])
+# # Display messages
+# for msg in chat_data["messages"]:
+#     st.chat_message(msg["role"]).markdown(msg["content"])
 
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
