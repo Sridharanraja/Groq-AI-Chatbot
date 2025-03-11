@@ -16,7 +16,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from crewai import Agent, Task
-
+import speech_recognition as sr
+import pyttsx3
 
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot with CrewAI", page_icon="\U0001F9E0")
@@ -132,6 +133,30 @@ else:
 #         st.error(f"Error retrieving documents: {e}")
 
 #     return [], "No relevant documents found."
+
+# Initialize Text-to-Speech Engine
+engine = pyttsx3.init()
+engine.setProperty("rate", 150)  # Adjust voice speed
+
+# Function: Speech to Text
+def speech_to_text():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("🎤 Speak now...")
+        recognizer.adjust_for_ambient_noise(source)
+        audio = recognizer.listen(source)
+
+    try:
+        return recognizer.recognize_google(audio)  # Convert speech to text
+    except sr.UnknownValueError:
+        return "Sorry, I could not understand your speech."
+    except sr.RequestError:
+        return "Could not request results, please check your internet."
+
+# Function: Text to Speech
+def text_to_speech(text):
+    engine.say(text)
+    engine.runAndWait()
 
 
 def retrieve_relevant_docs(query):
@@ -404,58 +429,39 @@ if user_input:
           json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
     conn.commit()
 
-    with st.spinner("Thinking..."):
-            # relevant_docs = retrieve_relevant_docs(user_input)
 
-            # if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-            #     # Convert filenames into clickable download links #{DATA_DIR}
-            #     source_text = "<br>".join([f'<a href="{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-            #     data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{source_text}"
-            #     context = relevant_docs[1]  # Get document text
-            # else:
-            #     data_source = f"**Data Source: {model_name}**"
-            #     context = "No relevant documents found. Using AI model only."
-            # st.markdown(data_source, unsafe_allow_html=True)
-
-        
-            # relevant_docs = retrieve_relevant_docs(user_input)
-
-            # if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
-            #     unique_filenames = relevant_docs[0]  
-            
-            #     # ✅ Show only unique DOCX files for download
-            #     source_text = "<br>".join([
-            #         f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
-            #         for doc in unique_filenames if doc.endswith(".docx")
-            #     ])
+# 🎤 Voice Input Button
+if st.button("🎤 Speak"):
+    user_input = speech_to_text()
+    st.chat_message("user").markdown(user_input)
+        with st.spinner("Thinking..."):
+                   relevant_docs = retrieve_relevant_docs(user_input)
                 
-            #     data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
-            #     context = relevant_docs[1]  # Get document text
-            # else:
-            #     data_source = f"**Data Source: {model_name}**"
-            #     context = "No relevant documents found. Using AI model only."
-            
-            # st.markdown(data_source, unsafe_allow_html=True)
-            relevant_docs = retrieve_relevant_docs(user_input)
-            
-            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                # Convert filenames into clickable download links
-                source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-                data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
-                context = relevant_docs[1]  # Get document text
-            else:
-                data_source = f"**Data Source: {model_name}**"
-                context = "No relevant documents found. Using AI model only."
-            # st.markdown(data_source, unsafe_allow_html=True)
-            full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
+                if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+                    # Convert filenames into clickable download links
+                    source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+                    data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
+                    context = relevant_docs[1]  # Get document text
+                else:
+                    data_source = f"**Data Source: {model_name}**"
+                    context = "No relevant documents found. Using AI model only."
+                # st.markdown(data_source, unsafe_allow_html=True)
+                full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
+    
+                client, model_id = models[model_name]
+                response = client.chat.completions.create(
+                    model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
+                )
+                bot_reply = response.choices[0].message.content
+    
+        chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+        st.chat_message("assistant").markdown(bot_reply)
+        # 🎤 Speak AI Response
+        text_to_speech(bot_reply)
 
-            client, model_id = models[model_name]
-            response = client.chat.completions.create(
-                model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
-            )
-            bot_reply = response.choices[0].message.content
-
-    chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-    st.chat_message("assistant").markdown(bot_reply)
+# 🔊 Listen Again Button
+if st.button("🔊 Listen Again") and st.session_state.messages:
+    last_response = st.session_state.messages[-1]["content"]
+    text_to_speech(last_response)
 
 
