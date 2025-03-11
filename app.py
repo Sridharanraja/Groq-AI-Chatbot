@@ -123,7 +123,7 @@ def retrieve_relevant_docs(query):
     try:
         results = vector_store.similarity_search_with_score(query, k=3)
         if results:
-            filenames = [res[0].metadata.get("source", "Unknown") for res in results]
+            filenames = list(set([res[0].metadata.get("source", "Unknown") for res in results]))  # ✅ Remove Duplicates
             doc_texts = "\n".join([
                 f"**Source: {filenames[i]}**\n{results[i][0].page_content[:1000]}" for i in range(len(results))
             ])
@@ -419,11 +419,13 @@ if user_input:
             relevant_docs = retrieve_relevant_docs(user_input)
     
             if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                # Convert filenames into clickable download links
+                unique_filenames = list(set(relevant_docs[0]))  # ✅ Ensure Unique Filenames
+            
                 source_text = "<br>".join([
                     f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
-                    for doc in relevant_docs[0] if doc.endswith(".docx")
+                    for doc in unique_filenames if doc.endswith(".docx")
                 ])
+                
                 data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
                 context = relevant_docs[1]  # Get document text
             else:
