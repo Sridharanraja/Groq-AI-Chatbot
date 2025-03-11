@@ -17,7 +17,6 @@ from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from crewai import Agent, Task
 
-
 # Initialize Streamlit app
 st.set_page_config(page_title="Groq RAG Chatbot with CrewAI", page_icon="\U0001F9E0")
 
@@ -35,6 +34,7 @@ CREATE TABLE IF NOT EXISTS chats (
 )
 """)
 conn.commit()
+
 try:
     cursor.execute("ALTER TABLE chats ADD COLUMN agent TEXT")
     conn.commit()
@@ -115,24 +115,6 @@ if os.path.exists(VECTOR_STORE_PATH):
     vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
 else:
     vector_store = None
-
-# def retrieve_relevant_docs(query):
-#     if vector_store is None:
-#         return [], "No relevant documents found. FAISS vector store is not initialized."
-
-#     try:
-#         results = vector_store.similarity_search_with_score(query, k=3)
-#         if results:
-#             filenames = list(set([res[0].metadata.get("source", "Unknown") for res in results]))  # ✅ Remove Duplicates
-#             doc_texts = "\n".join([
-#                 f"**Source: {filenames[i]}**\n{results[i][0].page_content[:1000]}" for i in range(len(results))
-#             ])
-#             return filenames, doc_texts
-#     except Exception as e:
-#         st.error(f"Error retrieving documents: {e}")
-
-#     return [], "No relevant documents found."
-
 
 def retrieve_relevant_docs(query):
     results = vector_store.similarity_search_with_score(query, k=3)  # Adjust k as needed
@@ -305,15 +287,6 @@ if uploaded_file:
 if "chats" not in st.session_state:
     st.session_state.chats = {}
 
-# if selected_agent_name not in st.session_state.chats:
-#     chat_id = str(uuid.uuid4())  # Unique chat ID per agent
-#     st.session_state.chats[selected_agent_name] = {
-#         "chat_id": chat_id,
-#         "chat_name": f"Chat with {selected_agent_name}",
-#         "messages": [],
-#         "model": "Llama 3 (8B)"
-#     }
-
 # Ensure selected agent has a dictionary in chats
 if selected_agent_name not in st.session_state.chats:
     st.session_state.chats[selected_agent_name] = {}  # Initialize empty dictionary
@@ -330,21 +303,6 @@ if "current_chat" not in st.session_state or st.session_state.current_chat not i
 
 # Now safely retrieve chat data
 chat_data = st.session_state.chats[selected_agent_name][st.session_state.current_chat]
-
-# # Create a new chat session if no chat exists for this agent
-# if not st.session_state.chats[selected_agent_name]:  
-#     chat_id = str(uuid.uuid4())
-#     st.session_state.chats[selected_agent_name][chat_id] = {
-#         "chat_name": f"Chat with {selected_agent_name}",
-#         "messages": [],
-#         "model": "Llama 3 (8B)",
-#         "agent": selected_agent_name,
-#     }
-#     st.session_state.current_chat = chat_id
-# else:
-#     # Retrieve an existing chat_id or default to the first one
-#     chat_id = st.session_state.current_chat or list(st.session_state.chats[selected_agent_name].keys())[0]
-#     st.session_state.current_chat = chat_id  # Ensure it's stored in session state
 
 # Get the chat data safely
 chat_data = st.session_state.chats[selected_agent_name].get(chat_id, {})
@@ -377,10 +335,6 @@ def generate_download_links(doc_files):
 
 st.title(f"\U0001F9E0 {selected_agent_name} Chatbot")
 
-# Model selection per agent
-# model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(chat_data["model"]))
-# chat_data["model"] = model_name
-
 default_model = chat_data.get("model", "Llama 3 (8B)")  # Default to Llama 3 (8B) if 'model' is missing
 model_name = st.selectbox("Choose AI Model", list(models.keys()), index=list(models.keys()).index(default_model))
 chat_data["model"] = model_name  # Ensure model selection is saved
@@ -401,70 +355,29 @@ if user_input:
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(chat_id) DO UPDATE SET messages = ?, agent = ? WHERE chat_id = ?
     """, (chat_id, "default_user", chat_data["chat_name"], json.dumps(chat_data["messages"]), model_name, selected_agent_name,
-          json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
+        json.dumps(chat_data["messages"]), selected_agent_name, chat_id))
     conn.commit()
 
     with st.spinner("Thinking..."):
-            # relevant_docs = retrieve_relevant_docs(user_input)
+        relevant_docs = retrieve_relevant_docs(user_input)
+ 
+        if relevant_docs and relevant_docs[0] and relevant_docs[1]:
+            # Convert filenames into clickable download links
+            source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
+            data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
+            context = relevant_docs[1]  # Get document text
+        else:
+            data_source = f"**Data Source: {model_name}**"
+            context = "No relevant documents found. Using AI model only."
+        # st.markdown(data_source, unsafe_allow_html=True)
+        # st.markdown(data_source, unsafe_allow_html=True)
+        full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
 
-            # if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-            #     # Convert filenames into clickable download links #{DATA_DIR}
-            #     source_text = "<br>".join([f'<a href="{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-            #     data_source = f"**Data Source: Internal Data - Reference Documents are** <br><br>{source_text}"
-            #     context = relevant_docs[1]  # Get document text
-            # else:
-            #     data_source = f"**Data Source: {model_name}**"
-            #     context = "No relevant documents found. Using AI model only."
-            # st.markdown(data_source, unsafe_allow_html=True)
-
-        
-            # relevant_docs = retrieve_relevant_docs(user_input)
-
-            # if relevant_docs and relevant_docs[0]:  # ✅ Ensure we have valid files
-            #     unique_filenames = relevant_docs[0]  
-            
-            #     # ✅ Show only unique DOCX files for download
-            #     source_text = "<br>".join([
-            #         f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' 
-            #         for doc in unique_filenames if doc.endswith(".docx")
-            #     ])
-                
-            #     data_source = f"**Data Source: Internal Data - Reference Documents** <br><br>{source_text}"
-            #     context = relevant_docs[1]  # Get document text
-            # else:
-            #     data_source = f"**Data Source: {model_name}**"
-            #     context = "No relevant documents found. Using AI model only."
-            
-            # st.markdown(data_source, unsafe_allow_html=True)
-            relevant_docs = retrieve_relevant_docs(user_input)
-            
-            if relevant_docs and relevant_docs[0] and relevant_docs[1]:
-                # Convert filenames into clickable download links
-                source_text = "<br>".join([f'<a href="{DATA_DIR}{doc}" download style="text-decoration: none; color: #00A8E8; font-weight: bold;">{doc}</a>' for doc in relevant_docs[0]])
-                data_source = f"**Data Source: Internal Data Reference Documents are** <br><br>{source_text}"
-                context = relevant_docs[1]  # Get document text
-            else:
-                data_source = f"**Data Source: {model_name}**"
-                context = "No relevant documents found. Using AI model only."
-            #st.markdown(data_source, unsafe_allow_html=True)
-            full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
-
-            client, model_id = models[model_name]
-            response = client.chat.completions.create(
-                model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
-            )
-            bot_reply = response.choices[0].message.content
-
-    chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-    st.chat_message("assistant").markdown(bot_reply)
-
-    #         full_prompt = f"Agent: {selected_agent_name}\nContext:\n{context}\n\nUser Query: {user_input}"
-
-    #         client, model_id = models[model_name]
-    #         response = client.chat.completions.create(
-    #             model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
-    #         )
-    #         bot_reply = response.choices[0].message.content
-
-    # chat_data["messages"].append({"role": "assistant", "content": bot_reply})
-    # st.chat_message("assistant").markdown(bot_reply)
+        client, model_id = models[model_name]
+        response = client.chat.completions.create(
+            model=model_id, messages=[{"role": "user", "content": full_prompt}], temperature=0.5, max_tokens=1500
+        )
+        bot_reply = response.choices[0].message.content
+ 
+chat_data["messages"].append({"role": "assistant", "content": bot_reply})
+st.chat_message("assistant").markdown(bot_reply)
