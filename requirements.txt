@@ -23,7 +23,3 @@ docx2txt
 langchain_community
 crewai
 pysqlite3-binary
-speechrecognition
-PyAudio
-espeakng
-gtts
